@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 
-
 import '../screens/home/home_page.dart';
 import '../screens/prayer_page/prayer_page.dart';
 import '../screens/profile/profile_page.dart';
 import 'bottom_navigation_bar.dart';
-
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -40,5 +38,3 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 }
-
-

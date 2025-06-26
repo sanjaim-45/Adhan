@@ -45,5 +45,76 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+
+	<!-- Required background modes -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+		<string>fetch</string>
+		<string>processing</string>
+		<string>remote-notification</string>
+	</array>
+
+	<!-- Audio Session configuration -->
+	<key>AVAudioSession</key>
+	<dict>
+		<key>AVAudioSessionCategory</key>
+		<string>AVAudioSessionCategoryPlayback</string>
+		<key>AVAudioSessionCategoryOptions</key>
+		<array>
+			<integer>1</integer> <!-- MixWithOthers -->
+		</array>
+	</dict>
+
+	<!-- Location permissions -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>This app needs access to your location to provide accurate prayer times</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>This app needs access to your location to provide accurate prayer times even when the app is in the background</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>This app needs access to your location to provide accurate prayer times even when the app is in the background</string>
+
+	<!-- Notification permissions -->
+	<key>NSUserNotificationAlertStyle</key>
+	<string>alert</string>
+	<key>NSUserNotificationCenterDefaultSoundName</key>
+	<string>alert.mp3</string>
+
+	<!-- Firebase configuration -->
+	<key>FirebaseAppDelegateProxyEnabled</key>
+	<false/>
+
+	<!-- Media playback controls -->
+	<key>MPNowPlayingInfoCenter</key>
+	<true/>
+	<key>MPRemoteCommandCenter</key>
+	<true/>
+
+	<!-- Privacy descriptions -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app requires microphone access for audio features</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app needs access to your photos to allow image selection</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>This app needs to save images to your photo library</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>This app uses Bluetooth for audio playback</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>This app uses Bluetooth for audio playback</string>
+
+	<!-- App transport security -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>localhost</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+			</dict>
+		</dict>
+	</dict>
 </dict>
 </plist>

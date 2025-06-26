@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:prayerunitesss/service/api/templete_api/api_service.dart';
+import 'package:prayerunitesss/utils/app_urls.dart';
+
 import '../../model/api/prayer/prayer_times.dart';
 import '../../service/api/prayer/prayer_timing_api.dart';
 import '../../service/api/tokens/token_service.dart';
+import '../../ui/screens/login_page/login_page.dart';
 
 class PrayerController {
   final PrayerService prayerService;
@@ -24,9 +28,12 @@ class PrayerController {
       if (e.toString().contains('authenticated') ||
           e.toString().contains('Session expired')) {
         // Clear tokens and navigate to login if auth error
-        await TokenService.clearTokens();
+        final apiService = ApiService(baseUrl: AppUrls.appUrl);
+        await apiService.refreshToken();
         if (context.mounted) {
-          Navigator.of(context).pushReplacementNamed('/login');
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const LoginPage()),
+          );
         }
       }
       rethrow;
@@ -34,46 +41,56 @@ class PrayerController {
   }
 
   String getPrayerStatus(
-      String prayerName,
-      DateTime selectedDate,
-      PrayerTimes prayerTimes,
-      ) {
+    String prayerName,
+    DateTime selectedDate,
+    PrayerTimes prayerTimes,
+  ) {
+    // Get current time
     final now = DateTime.now();
-    final isToday = selectedDate.year == now.year &&
+
+    // Check if selected date is today
+    final isToday =
+        selectedDate.year == now.year &&
         selectedDate.month == now.month &&
         selectedDate.day == now.day;
 
     try {
-      final prayerTime = prayerTimes.toMap()[prayerName]!;
-      final prayerDateTime = DateFormat('HH:mm').parse(prayerTime);
-      final prayerTimeToday = DateTime(
+      final prayerTimeStr = prayerTimes.toMap()[prayerName];
+
+      // If no time is available yet, return a default status
+      if (prayerTimeStr == null || prayerTimeStr == '--:--') {
+        return 'Upcoming'; // Or 'Loading' or any neutral state
+      }
+
+      // Parse prayer time
+      final parsedPrayerTime = DateFormat('HH:mm').parse(prayerTimeStr);
+
+      final prayerDateTime = DateTime(
         selectedDate.year,
         selectedDate.month,
         selectedDate.day,
-        prayerDateTime.hour,
-        prayerDateTime.minute,
+        parsedPrayerTime.hour,
+        parsedPrayerTime.minute,
       );
 
-      if (isToday) {
-        // For today's date, calculate status based on current time
-        final differenceInMinutes = prayerTimeToday.difference(now).inMinutes.abs();
-        final isAfterPrayerTime = now.isAfter(prayerTimeToday);
-
-        if (isAfterPrayerTime) {
-          return differenceInMinutes > 60 ? 'Completed' : 'Live';
-        } else {
-          return differenceInMinutes > 60 ? 'Upcoming' : 'Live';
-        }
-      } else {
-        // For past dates, all prayers should be 'Completed'
-        // For future dates, all prayers should be 'Upcoming'
+      if (!isToday) {
         return selectedDate.isBefore(now) ? 'Completed' : 'Upcoming';
       }
+
+      final liveEndTime = prayerDateTime.add(const Duration(minutes: 30));
+
+      if (now.isBefore(prayerDateTime)) {
+        return 'Upcoming';
+      } else if (now.isBefore(liveEndTime)) {
+        return 'Live';
+      } else {
+        return 'Completed';
+      }
     } catch (e) {
+      print('Error in getPrayerStatus: $e');
       return 'Upcoming';
     }
   }
-
 
   Color getStatusColor(String status) {
     switch (status) {

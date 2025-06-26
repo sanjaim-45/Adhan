@@ -1,13 +1,14 @@
 import 'dart:convert';
+
 import 'package:prayerunitesss/service/api/templete_api/api_service.dart';
 import 'package:prayerunitesss/utils/app_urls.dart';
 
 class SubscriptionService {
-  static final ApiService _apiService = ApiService(baseUrl: AppUrls().appUrl);
+  static final ApiService _apiService = ApiService(baseUrl: AppUrls.appUrl);
 
   static Future<Map<String, dynamic>> getSubscriptionPlans() async {
     final response = await _apiService.sendRequest(
-      '${AppUrls().appUrl}/api/SubscriptionPlan/getAll',
+      '${AppUrls.appUrl}/api/SubscriptionPlan/getAll',
       'GET',
     );
 
@@ -21,14 +22,12 @@ class SubscriptionService {
   static Future<dynamic> subscribeToPlan({
     required String customerId,
     required int planId,
+    required int deviceId,
   }) async {
     final response = await _apiService.sendRequest(
-      '${AppUrls().appUrl}/api/CustomerSubscription/create',
+      '${AppUrls.appUrl}/api/CustomerSubscription/create',
       'POST',
-      body: {
-        'userId': customerId,
-        'planId': planId,
-      },
+      body: {'userId': customerId, 'planId': planId, 'deviceId': deviceId},
     );
 
     try {

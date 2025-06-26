@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
-import 'package:prayerunitesss/providers/user_details_from_login/user_details.dart';
-import 'package:prayerunitesss/ui/screens/subscription/upgrade.dart';
-import 'package:prayerunitesss/utils/font_mediaquery.dart';
+import 'package:prayerunitesss/ui/screens/subscription/subscription_details_page.dart';
+import 'package:prayerunitesss/utils/app_urls.dart';
+import 'package:prayerunitesss/utils/custom_appbar.dart';
 
-
+import '../../../model/api/customer/customer_all_details_model/customer_all_details.dart';
+import '../../../service/api/customer/customer_service_api.dart';
+import '../../../service/api/subscription/subscription_service.dart';
 
 class MySubscriptionPage extends StatefulWidget {
   const MySubscriptionPage({super.key});
@@ -16,389 +15,357 @@ class MySubscriptionPage extends StatefulWidget {
 }
 
 class _MySubscriptionPageState extends State<MySubscriptionPage> {
+  late Future<CustomerAllDetails> _customerDetailsFuture;
+  final CustomerServices _apiService = CustomerServices(
+    baseUrl: AppUrls.appUrl,
+  );
+
+  bool isLoading = false;
+  String errorMessage = '';
+  List<dynamic> plans = [];
+  String? selectedPlan;
+  String? selectedPlanId;
+  double selectedPlanPrice = 0.0;
+
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
-    final userDetailsProviders = Provider.of<UserDetailsProvider>(context, listen: false);
+    _customerDetailsFuture = _apiService.getAllCustomerDetails();
+    _fetchSubscriptionPlans();
+  }
 
-    // ✅ Load user details from SharedPreferences when page opens
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      userDetailsProviders.loadUserDetails(); // Triggers reload of all saved data
+  Future<void> _fetchSubscriptionPlans() async {
+    setState(() {
+      isLoading = true;
+      errorMessage = '';
     });
 
+    try {
+      final data = await SubscriptionService.getSubscriptionPlans();
+      setState(() {
+        plans = data['data'];
+        if (plans.isNotEmpty) {
+          selectedPlan = plans[0]['planName'];
+          selectedPlanId = plans[0]['planId'];
+          selectedPlanPrice =
+              double.tryParse(plans[0]['price'].toString()) ?? 0.0;
+        }
+      });
+    } catch (e) {
+      setState(() {
+        errorMessage = 'Failed to load subscription plans: ${e.toString()}';
+      });
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
+
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-    final mediaQuery = MediaQuery.of(context);
-    final screenWidth = mediaQuery.size.width;
-
-    final userDetailsProvider = Provider.of<UserDetailsProvider>(context);
-    final subscription = userDetailsProvider.userDetails?.subscription;
-
-    // Format expiration date if subscription exists
-    String formattedDate = '';
-    if (subscription != null) {
-      final expirationDate =
-      DateTime.now().add(Duration(days: subscription.remainingDays));
-      formattedDate = DateFormat('dd MMM yyyy').format(expirationDate);
-    }
+    final screenWidth = MediaQuery.of(context).size.width;
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(kToolbarHeight),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.1),
-                spreadRadius: 1,
-                blurRadius: 8,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: AppBar(
-            backgroundColor: Colors.white,
-            elevation: 0,
-            leadingWidth: 30,
-            leading: Padding(
-              padding: const EdgeInsets.only(left: 8.0),
-              child: IconButton(
-                icon: Icon(
-                  Icons.arrow_back_ios_new,
-                  size: screenWidth * 0.043,
-                ),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ),
-            title: Text(
-              'Subscription',
-              style: GoogleFonts.beVietnamPro(
-                color: Colors.black,
-                letterSpacing: -0.5,
-                fontSize: getDynamicFontSize(context, 0.05),
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ),
+      backgroundColor: Color(0xFFFFFFFF),
+      appBar: CustomAppBar(
+        title: "My Subscription",
+        onBack: Navigator.of(context).pop,
       ),
       body: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: size.width * 0.05,
-          vertical: size.height * 0.02,
-        ),
-        child: subscription != null
-            ? Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [
-                    Color(0xFF004408),
-                    Color(0xFF2E7D32),
+        padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.05),
+        child: FutureBuilder<CustomerAllDetails>(
+          future: _customerDetailsFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            } else if (snapshot.hasError) {
+              return Center(child: Text('Error: ${snapshot.error}'));
+            } else if (!snapshot.hasData || snapshot.data!.data == null) {
+              return const Center(
+                child: Text('No subscription data available'),
+              );
+            }
+
+            final customerData = snapshot.data!.data!;
+            final subscriptions = _getSubscriptionsFromDevices(
+              customerData.devices,
+            );
+
+            if (subscriptions.isEmpty) {
+              return const Center(child: Text('No active subscriptions found'));
+            }
+
+            return ListView.builder(
+              itemCount: subscriptions.length,
+              itemBuilder: (context, index) {
+                final subscription = subscriptions[index];
+                return Column(
+                  children: [
+                    const SizedBox(height: 12),
+                    SubscriptionCard.fromApiData(
+                      subscriptionData: subscription,
+                      plans: plans,
+                    ),
+                    if (index == subscriptions.length - 1)
+                      const SizedBox(height: 24),
                   ],
-                  begin: Alignment.centerRight,
-                  end: Alignment.centerLeft,
-                ),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF73A876),
-                          borderRadius: BorderRadius.circular(5),
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 5,
-                          vertical: 5,
-                        ),
-                        child: Text(
-                          "My Current Plan",
-                          style: GoogleFonts.beVietnamPro(
-                            color: Colors.white,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        subscription.planName,
-                        style: GoogleFonts.beVietnamPro(
-                          color: Colors.white,
-                          fontSize: 14,
-                        ),
-                      ),
-                      Text.rich(
-                        TextSpan(
-                          children: [
-                            TextSpan(
-                              text:
-                              '${subscription.price} ${subscription.currency.trim()}',
-                              style: GoogleFonts.beVietnamPro(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            TextSpan(
-                              text:
-                              ' / ${subscription.billingCycle.toLowerCase()}',
-                              style: GoogleFonts.beVietnamPro(
-                                color: Colors.white,
-                                fontSize: 14,
-                                fontWeight: FontWeight.normal,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Text.rich(
-                        TextSpan(
-                          children: [
-                            const TextSpan(
-                              text: 'Expires on: ',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                              ),
-                            ),
-                            TextSpan(
-                              text: formattedDate,
-                              style: GoogleFonts.beVietnamPro(
-                                color: Color(0xFFF4DE8B),
-                                fontSize: 12,
-                                fontWeight: FontWeight.normal,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      ElevatedButton(
-                        onPressed: () {
-                          showCancelSubscriptionDialog(context);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: Colors.black,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          padding: EdgeInsets.symmetric(
-                            vertical: size.height * 0.016,
-                            horizontal: screenWidth * 0.05,
-                          ),
-                        ),
-                        child: const Text(
-                          'Cancel Anytime',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  Transform.translate(
-                    offset: Offset(
-                      MediaQuery.of(context).size.width * 0.01,
-                      MediaQuery.of(context).size.height * 0.01,
-                    ),
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => const SubscriptionPage(),
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFD4AF37),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                      ),
-                      child: Text(
-                        'Change Plan',
-                        style: GoogleFonts.beVietnamPro(
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            )
-          ],
-        )
-            : Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'Subscribe to listen to the prayer',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.beVietnamPro(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey[700],
-                ),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => const SubscriptionPage(),
-                    ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFD4AF37),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 32,
-                    vertical: 12,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                ),
-                child: Text(
-                  'Subscribe Now',
-                  style: GoogleFonts.beVietnamPro(
-                    color: Colors.white,
-                    fontSize: 16,
-                  ),
-                ),
-              ),
-            ],
-          ),
+                );
+              },
+            );
+          },
         ),
       ),
     );
   }
-}
-void showCancelSubscriptionDialog(BuildContext context) {
-  final size = MediaQuery.of(context).size;
-  final screenWidth = size.width;
-  final userDetailsProvider = Provider.of<UserDetailsProvider>(context, listen: false);
 
-  showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (context) => Dialog(
-      backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      elevation: 10,
-      child: Padding(
-        padding: EdgeInsets.all(screenWidth * 0.05),
+  List<SubscriptionData> _getSubscriptionsFromDevices(
+    List<CustomerDevice> devices,
+  ) {
+    final List<SubscriptionData> subscriptions = [];
+
+    for (final device in devices) {
+      if (device.subscription != null) {
+        subscriptions.add(
+          SubscriptionData(
+            device: device,
+            subscription: device.subscription!,
+            mosque: device.mosque,
+            startDate: device.subscription!.startDate, // Add the start date
+          ),
+        );
+      }
+    }
+
+    return subscriptions;
+  }
+}
+
+class SubscriptionData {
+  final CustomerDevice device;
+  final Subscriptionss subscription;
+  final Mosquess? mosque;
+  final String startDate; // Add this field
+
+  SubscriptionData({
+    required this.device,
+    required this.subscription,
+    this.mosque,
+    required this.startDate, // Add to constructor
+  });
+}
+
+class SubscriptionCard extends StatelessWidget {
+  final String planTitle;
+  final String amount;
+  final String dateLabel;
+  final String device;
+  final String mosque;
+  final String status;
+  final String startDate; // Add this
+  final String endDate; // Add this
+  final Color statusColor;
+  final Color statusBgColor;
+  final String subscriptionId;
+  final IconData icon;
+
+  const SubscriptionCard({
+    super.key,
+    required this.planTitle,
+    required this.amount,
+    required this.dateLabel,
+    required this.device,
+    required this.mosque,
+    required this.status,
+    required this.startDate, // Add to constructor
+    required this.endDate, // Add to constructor
+    required this.statusColor,
+    required this.statusBgColor,
+    required this.icon,
+    required this.subscriptionId,
+  });
+
+  factory SubscriptionCard.fromApiData({
+    required SubscriptionData subscriptionData,
+    required List<dynamic> plans,
+  }) {
+    final subscription = subscriptionData.subscription;
+    final device = subscriptionData.device;
+    final mosque = subscriptionData.mosque;
+
+    // Determine status based on dates
+    final endDate = DateTime.tryParse(subscription.endDate) ?? DateTime.now();
+    final now = DateTime.now();
+    final daysUntilExpiry = endDate.difference(now).inDays;
+
+    String status;
+    Color statusColor;
+    Color statusBgColor;
+    IconData icon;
+
+    if (endDate.isBefore(now)) {
+      status = 'Expired';
+      statusColor = Colors.red;
+      statusBgColor = const Color(0xFFFFEBEE);
+    } else if (daysUntilExpiry <= 7) {
+      status = 'Expiring Soon';
+      statusColor = Colors.orange;
+      statusBgColor = const Color(0xFFFFF3E0);
+    } else {
+      status = 'Active';
+      statusColor = Colors.green;
+      statusBgColor = const Color(0xFFE6F4EA);
+    }
+
+    // Determine icon based on device type
+    if (device.deviceName.toLowerCase().contains('mobile')) {
+      icon = Icons.mobile_friendly_rounded;
+    } else if (device.deviceName.toLowerCase().contains('speaker')) {
+      icon = Icons.speaker;
+    } else {
+      icon = Icons.devices_other;
+    }
+
+    // Get the plan details
+    final plan = plans.firstWhere(
+      (plan) => plan['planId'] == subscription.planID,
+      orElse:
+          () => {
+            'planName': 'Unknown Plan',
+            'price': subscription.paidAmount,
+            'currency': 'KWD ',
+          },
+    );
+
+    // Format amount with currency
+    final currency = plan['currency'] ?? 'KWD ';
+    final amount = '$currency${subscription.paidAmount.toStringAsFixed(3)}';
+
+    return SubscriptionCard(
+      planTitle: plan['planName'],
+      amount: amount,
+      dateLabel: 'Expires: ${_formatDate(subscription.endDate)}',
+      device: device.deviceName,
+      mosque: mosque?.mosqueName ?? 'Unknown Mosque',
+      status: status,
+      statusColor: statusColor,
+      statusBgColor: statusBgColor,
+      icon: icon,
+      startDate: subscription.startDate,
+      endDate: subscription.endDate,
+      subscriptionId: subscription.subscriptionID.toString(),
+    );
+  }
+
+  static String _formatDate(String dateString) {
+    final date = DateTime.tryParse(dateString) ?? DateTime.now();
+    return '${date.day}/${date.month}/${date.year}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder:
+                (context) => SubscriptionDetailsPage(
+                  planTitle: planTitle,
+                  amount: amount,
+                  status: status,
+                  statusColor: statusColor,
+                  statusBgColor: statusBgColor,
+                  startDate: startDate,
+                  endDate: endDate,
+                  deviceName: device,
+                  mosqueName: mosque,
+                  subscriptionId: int.tryParse(subscriptionId) ?? 0,
+                ),
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: Colors.white,
+          border: Border.all(color: Colors.grey.shade200),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.subscriptions_rounded,
-                color: Colors.red,
-                size: 32,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Cancel Subscription?',
-              style: GoogleFonts.beVietnamPro(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Your premium features will remain active until the end of your billing period.',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.beVietnamPro(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
-            ),
-            const SizedBox(height: 24),
             Row(
               children: [
+                Icon(icon, size: 22, color: Colors.grey[700]),
+                const SizedBox(width: 10),
                 Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: OutlinedButton.styleFrom(
-                      padding: EdgeInsets.symmetric(
-                        vertical: size.height * 0.016,
-                      ),
-                      side: BorderSide(color: Colors.grey.shade300),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: Text(
-                      'Keep Subscription',
-                      style: GoogleFonts.beVietnamPro(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
+                  child: Text(
+                    '${planTitle} Device Subscription',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      await userDetailsProvider.clearSubscription();
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Subscription cancelled successfully'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red[400],
-                      padding: EdgeInsets.symmetric(
-                        vertical: size.height * 0.016,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: Text(
-                      'Confirm Cancel',
-                      style: GoogleFonts.beVietnamPro(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: statusBgColor,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Text(
+                    status,
+                    style: TextStyle(
+                      color: statusColor,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
               ],
             ),
+            const SizedBox(height: 10),
+            Text(
+              amount,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            Text(dateLabel, style: const TextStyle(color: Colors.grey)),
+            const SizedBox(height: 8),
+            RichText(
+              text: TextSpan(
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black, // Default color for device name
+                  fontSize: 14, // Adjust font size as needed
+                ),
+                children: <TextSpan>[
+                  TextSpan(
+                    text: '$device - ',
+                    style: TextStyle(color: Color(0xFF119B21)),
+                  ), // Device name in green
+                  TextSpan(
+                    text: mosque,
+                    style: const TextStyle(
+                      color: Colors.black,
+                    ), // Mosque name in black
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
-    ),
-  );
+    );
+  }
 }

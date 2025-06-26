@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 
+import '../../../providers/notification/notification_provider.dart';
+import '../../../utils/custom_appbar.dart';
 import '../../../utils/font_mediaquery.dart';
-import '../../widgets/main_screen.dart';
 
 class NotificationPreferencePage extends StatefulWidget {
   const NotificationPreferencePage({super.key});
@@ -14,56 +16,29 @@ class NotificationPreferencePage extends StatefulWidget {
 
 class _NotificationPreferencePageState
     extends State<NotificationPreferencePage> {
-  bool livePrayerAlert = false;
   bool subscriptionReminder = true;
   bool specialAnnouncements = true;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<NotificationProvider>().loadInitialSettings();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final notificationProvider = context.watch<NotificationProvider>();
     final mediaQuery = MediaQuery.of(context);
     final screenHeight = mediaQuery.size.height;
     final screenWidth = mediaQuery.size.width;
 
     return Scaffold(
       backgroundColor: const Color(0xFFFFFFFF),
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(kToolbarHeight),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.1),
-                spreadRadius: 1,
-                blurRadius: 8,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: AppBar(
-            backgroundColor: Colors.white,
-            elevation: 0,
-            leadingWidth: 30, // Adjust the width of the leading icon
-            leading: Padding(
-              padding: const EdgeInsets.only(left: 8.0),
-              child: IconButton(
-                icon: Icon(Icons.arrow_back_ios_new,                      size: screenWidth * 0.043,
-                ),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ),
-            title: Text(
-              'Notification Preference',
-              style: GoogleFonts.beVietnamPro(
-                color: Colors.black,
-                letterSpacing: -0.5,
-                fontSize: getDynamicFontSize(context,0.05),
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-
-        ),
+      appBar: CustomAppBar(
+        title: 'Notification Preference',
+        onBack: () => Navigator.of(context).pop(),
       ),
       body: Column(
         children: [
@@ -88,57 +63,55 @@ class _NotificationPreferencePageState
                     Text(
                       'Notification Preference',
                       style: GoogleFonts.beVietnamPro(
-                          fontSize:getFontBoldSize(context),
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: -0.5
+                        fontSize: getFontBoldSize(context),
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: -0.5,
                       ),
                     ),
-                    SizedBox(height: screenHeight * 0.007), // 8 for 750 height
+                    SizedBox(height: screenHeight * 0.007),
                     Text(
                       'Keep your heart connected — receive reminders for prayers, renewals, and special announcements.',
                       style: GoogleFonts.beVietnamPro(
-                          fontSize:getFontRegularSize(context),
-                          color: Colors.black87,
-                          letterSpacing: -0.5
-
+                        fontSize: getFontRegularSize(context),
+                        color: Colors.black87,
+                        letterSpacing: -0.5,
                       ),
                     ),
-                    SizedBox(height: screenHeight * 0.025), // 24 for 750 height
-                    // Live Prayer Streaming Alerts
+                    SizedBox(height: screenHeight * 0.025),
+                    // Live Prayer Streaming Alerts (with API)
                     _buildSwitchTile(
                       context: context,
                       title: "Live Prayer Streaming Alerts",
                       subtitle:
-                      "Get notified when live prayer audio starts from your masjid.",
-                      value: livePrayerAlert,
-                      onChanged: (val) => setState(() => livePrayerAlert = val),
+                          "Get notified when live prayer audio starts from your masjid.",
+                      value: notificationProvider.livePrayerAlert,
+                      onChanged:
+                          (val) => notificationProvider
+                              .togglePrayerNotification(val),
+                      isLoading: notificationProvider.isLoading,
                     ),
-
-                    SizedBox(height: screenHeight * 0.015), // 16 for 750 height
-                    // Subscription Renewal Reminders
+                    SizedBox(height: screenHeight * 0.015),
+                    // Subscription Renewal Reminders (no API yet)
                     _buildSwitchTile(
                       context: context,
                       title: "Subscription Renewal Reminders",
                       subtitle:
-                      "Reminder when your subscription is about to expire",
+                          "Reminder when your subscription is about to expire",
                       value: subscriptionReminder,
                       onChanged:
                           (val) => setState(() => subscriptionReminder = val),
                     ),
-
-                    SizedBox(height: screenHeight * 0.015), // 16 for 750 height
-                    // Special Announcements from Masjid
+                    SizedBox(height: screenHeight * 0.015),
+                    // Special Announcements from Masjid (no API yet)
                     _buildSwitchTile(
                       context: context,
                       title: "Special Announcements from Masjid",
                       subtitle:
-                      "Receive announcements like special prayers, community updates, or events",
+                          "Receive announcements like special prayers, community updates, or events",
                       value: specialAnnouncements,
                       onChanged:
                           (val) => setState(() => specialAnnouncements = val),
                     ),
-
-
                   ],
                 ),
               ),
@@ -151,22 +124,20 @@ class _NotificationPreferencePageState
 
   Widget _buildSwitchTile({
     required BuildContext context,
-
     required String title,
     required String subtitle,
     required bool value,
     required Function(bool) onChanged,
+    bool isLoading = false,
   }) {
     final mediaQuery = MediaQuery.of(context);
     final screenHeight = mediaQuery.size.height;
     final screenWidth = mediaQuery.size.width;
 
-    final textScaleFactor = mediaQuery.textScaleFactor;
-
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: mediaQuery.size.width * 0.025, // 16 for 375 width
-        vertical: screenHeight * 0.016, // 14 for 750 height
+        horizontal: mediaQuery.size.width * 0.025,
+        vertical: screenHeight * 0.016,
       ),
       decoration: BoxDecoration(
         color: const Color(0xFFFFFFFF),
@@ -186,14 +157,13 @@ class _NotificationPreferencePageState
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                SizedBox(height: screenHeight * 0.002), // 4 for 750 height
+                SizedBox(height: screenHeight * 0.002),
                 Text(
                   subtitle,
                   style: GoogleFonts.beVietnamPro(
                     fontSize: getFontRegularSize(context),
                     letterSpacing: -0.5,
-
-                    color: Color(0xFF767676),
+                    color: const Color(0xFF767676),
                   ),
                 ),
               ],
@@ -201,48 +171,40 @@ class _NotificationPreferencePageState
           ),
           Transform.scale(
             scale: 0.8,
-            child: Material(
-              type: MaterialType.transparency, // Removes background
-              child: SwitchTheme(
-                data: SwitchThemeData(
-                  thumbColor: MaterialStateProperty.resolveWith<Color>((
-                      states,
-                      ) {
-                    return Colors.white; // Thumb color (always white)
-                  }),
-                  trackColor: MaterialStateProperty.resolveWith<Color>((
-                      states,
-                      ) {
-                    if (states.contains(MaterialState.selected)) {
-                      return const Color(
-                        0xFF3B873E,
-                      ); // Active track color (green)
-                    }
-                    return const Color(
-                      0xFFF2F4F7,
-                    ); // Inactive track color (gray)
-                  }),
-                  trackOutlineColor: WidgetStateProperty.resolveWith<Color>((
-                      states,
-                      ) {
-                    if (states.contains(WidgetState.selected)) {
-                      return Colors.transparent; // No border when active
-                    }
-                    return Colors.transparent; // Black border when inactive
-                  }),
-                  trackOutlineWidth: WidgetStateProperty.resolveWith<double>((
-                      states,
-                      ) {
-                    return 0.0; // Border width (1px)
-                  }),
-                ),
-                child: Switch(
-                  value: value,
-                  onChanged: onChanged,
-                  materialTapTargetSize: MaterialTapTargetSize.padded,
-                ),
-              ),
-            ),
+            child:
+                isLoading
+                    ? const CircularProgressIndicator()
+                    : Material(
+                      type: MaterialType.transparency,
+                      child: SwitchTheme(
+                        data: SwitchThemeData(
+                          thumbColor: MaterialStateProperty.resolveWith<Color>((
+                            states,
+                          ) {
+                            return Colors.white;
+                          }),
+                          trackColor: MaterialStateProperty.resolveWith<Color>((
+                            states,
+                          ) {
+                            if (states.contains(MaterialState.selected)) {
+                              return const Color(0xFF3B873E);
+                            }
+                            return const Color(0xFFF2F4F7);
+                          }),
+                          trackOutlineColor:
+                              MaterialStateProperty.resolveWith<Color>((
+                                states,
+                              ) {
+                                return Colors.transparent;
+                              }),
+                        ),
+                        child: Switch(
+                          value: value,
+                          onChanged: onChanged,
+                          materialTapTargetSize: MaterialTapTargetSize.padded,
+                        ),
+                      ),
+                    ),
           ),
         ],
       ),

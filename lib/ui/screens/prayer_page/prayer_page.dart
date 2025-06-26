@@ -1,19 +1,24 @@
+import 'dart:io';
+
+import 'package:bottom_picker/bottom_picker.dart';
 import 'package:bottom_picker/resources/arrays.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
-import 'package:bottom_picker/bottom_picker.dart';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 
-
+import '../../../model/api/customer/customer_all_details_model/customer_all_details.dart';
 import '../../../model/api/prayer/prayer_times.dart';
 import '../../../providers/prayer_provider/prayer_timing_provider.dart';
+import '../../../service/api/customer/customer_service_api.dart';
 import '../../../service/api/prayer/prayer_timing_api.dart';
+import '../../../utils/app_urls.dart';
 import '../../../utils/font_mediaquery.dart';
 import '../../widgets/prayer_card.dart';
 import '../notification/notification_receiving_page.dart';
+import '../profile/profile_page.dart';
 import '../subscription/upgrade.dart';
 
 class PrayerTimesPage extends StatefulWidget {
@@ -23,14 +28,13 @@ class PrayerTimesPage extends StatefulWidget {
   State<PrayerTimesPage> createState() => _PrayerTimesPageState();
 }
 
-class _PrayerTimesPageState extends State<PrayerTimesPage> with AutomaticKeepAliveClientMixin {
-
+class _PrayerTimesPageState extends State<PrayerTimesPage>
+    with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
-  late http.Client _httpClient;
+  late final HttpClient _httpClient;
 
   DateTime selectedDate = DateTime.now();
-  // Map<String, String> prayerTimes = {};
   bool isLoading = true;
   String errorMessage = '';
   PrayerTimes prayerTimes = PrayerTimes(
@@ -41,12 +45,43 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> with AutomaticKeepAli
     isha: '--:--',
   );
   late PrayerController _prayerController;
+  bool hasActiveSubscription = false;
+  CustomerAllDetails? customerDetails;
+
+  final List<Map<String, String>> _prayerDetails = [
+    {'name': 'Fajr', 'arabic': 'الفجر'},
+    {'name': 'Dhuhr', 'arabic': 'الظهر'},
+    {'name': 'Asr', 'arabic': 'العصر'},
+    {'name': 'Maghrib', 'arabic': 'المغرب'},
+    {'name': 'Isha', 'arabic': 'العشاء'},
+  ];
 
   @override
   void initState() {
     super.initState();
+    _httpClient = HttpClient();
     _prayerController = PrayerController(PrayerService(http.Client()), context);
+    _fetchCustomerDetails();
     _fetchPrayerTimes();
+  }
+
+  Future<void> _fetchCustomerDetails() async {
+    try {
+      final customerServices = CustomerServices(baseUrl: AppUrls.appUrl);
+      final details = await customerServices.getAllCustomerDetails();
+      if (mounted) {
+        setState(() {
+          customerDetails = details;
+          hasActiveSubscription =
+              details.data?.devices.any(
+                (device) => device.subscription?.subscriptionStatus == true,
+              ) ??
+              false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching customer details: $e');
+    }
   }
 
   Future<void> _fetchPrayerTimes() async {
@@ -66,25 +101,30 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> with AutomaticKeepAli
         isLoading = false;
       });
     } catch (e) {
-      if (!mounted) return;
+      String message =
+          e.toString().contains('authenticated') ||
+                  e.toString().contains('Session expired')
+              ? 'Please login again.'
+              : 'Failed to load prayer times. Please try again.';
 
-      setState(() {
-        errorMessage = e.toString().contains('authenticated') || e.toString().contains('Session expired')
-            ? 'Please login again.'
-            : 'Failed to load prayer times. Please try again.';
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          errorMessage = message;
+          isLoading = false;
+        });
+      }
 
       if (e.toString().contains('Location services')) {
-        _showEnableLocationDialog(context);
+        if (mounted) await _showEnableLocationDialog(context);
       } else if (e.toString().contains('Location permissions')) {
-        _showPermissionDeniedDialog(context);
-      } else if (e.toString().contains('authenticated') || e.toString().contains('Session expired')) {
-        Navigator.pushReplacementNamed(context, '/login');
+        if (mounted) await _showPermissionDeniedDialog(context);
+      } else if (e.toString().contains('authenticated') ||
+          e.toString().contains('Session expired')) {
+        if (mounted) Navigator.pushReplacementNamed(context, '/login');
       }
     }
   }
-// Add these methods inside the _PrayerHomePageState class
+
   Future<void> _showEnableLocationDialog(BuildContext context) async {
     return showDialog<void>(
       context: context,
@@ -95,7 +135,9 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> with AutomaticKeepAli
           content: SingleChildScrollView(
             child: ListBody(
               children: <Widget>[
-                Text('To get accurate prayer times, please enable location services.'),
+                Text(
+                  'To get accurate prayer times, please enable location services.',
+                ),
               ],
             ),
           ),
@@ -114,7 +156,6 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> with AutomaticKeepAli
               onPressed: () async {
                 Navigator.of(context).pop();
                 await Geolocator.openLocationSettings();
-                // Retry after user enables location
                 await Future.delayed(Duration(seconds: 1));
                 _fetchPrayerTimes();
               },
@@ -137,7 +178,10 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> with AutomaticKeepAli
           elevation: 4,
           titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
           contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
-          actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          actionsPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 8,
+          ),
           title: Row(
             children: [
               Icon(
@@ -148,9 +192,9 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> with AutomaticKeepAli
               const SizedBox(width: 12),
               Text(
                 'Location Access Needed',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
               ),
             ],
           ),
@@ -161,15 +205,17 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> with AutomaticKeepAli
               Text(
                 'To provide accurate prayer times based on your location, we need access to your device location.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withOpacity(0.8),
                 ),
               ),
               const SizedBox(height: 8),
               Text(
                 'Please grant permission in settings.',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w500,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
               ),
             ],
           ),
@@ -179,15 +225,17 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> with AutomaticKeepAli
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                side: BorderSide(
-                  color: Theme.of(context).colorScheme.outline,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
                 ),
+                side: BorderSide(color: Theme.of(context).colorScheme.outline),
               ),
               onPressed: () {
                 Navigator.of(context).pop();
                 setState(() {
-                  errorMessage = 'Location permission required for prayer times';
+                  errorMessage =
+                      'Location permission required for prayer times';
                 });
               },
               child: Text(
@@ -203,13 +251,15 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> with AutomaticKeepAli
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
                 backgroundColor: Theme.of(context).colorScheme.primary,
               ),
               onPressed: () async {
                 Navigator.of(context).pop();
                 await Geolocator.openAppSettings();
-                // Retry after user grants permission
                 await Future.delayed(const Duration(seconds: 1));
                 _fetchPrayerTimes();
               },
@@ -291,10 +341,9 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> with AutomaticKeepAli
     ).show(context);
   }
 
-
   @override
   void dispose() {
-    _httpClient.close(); // Cancel any pending requests
+    _httpClient.close();
     super.dispose();
   }
 
@@ -304,237 +353,255 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> with AutomaticKeepAli
 
     double screenHeight = MediaQuery.of(context).size.height;
     double screenWidth = MediaQuery.of(context).size.width;
-    return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(kToolbarHeight),
-        child: AppBar(
-          automaticallyImplyLeading: false,
-          actions: [
-            Row(
-              children: [
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => SubscriptionPage(),
-                      ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2E7D32),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 12,
-                    ),
-                  ),
-                  child: Text(
-                    "Upgrade",
-                    style: GoogleFonts.beVietnamPro(
-                      color: Colors.white,
-                      letterSpacing: -0.5,
-                      fontSize: getFontRegularSize(context),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                CircleAvatar(
-                  maxRadius: getFontRegular55Size(context),
-                  backgroundColor: Color(0xFFFBF7EB),
-                  child: GestureDetector(
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => NotificationReceivingPage(),
+
+    return Stack(
+      children: [
+        PopScope(
+          canPop: false,
+          onPopInvoked: (didPop) {
+            if (didPop) return;
+            navigateToHomeScreen(context);
+          },
+          child: Scaffold(
+            appBar: PreferredSize(
+              preferredSize: const Size.fromHeight(kToolbarHeight),
+              child: AppBar(
+                automaticallyImplyLeading: false,
+                actions: [
+                  Row(
+                    children: [
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => SubscriptionPage(),
+                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF2E7D32),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 12,
+                          ),
                         ),
-                      );
-                    },
-                    child: Icon(
-                      size: getFontRegular55Size(context),
-                      Icons.notifications_none_outlined,
-                      color: Colors.black,
-                    ),
+                        child: Text(
+                          "Upgrade",
+                          style: GoogleFonts.beVietnamPro(
+                            color: Colors.white,
+                            letterSpacing: -0.5,
+                            fontSize: getFontRegularSize(context),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      CircleAvatar(
+                        maxRadius: getFontRegular55Size(context),
+                        backgroundColor: Color(0xFFFBF7EB),
+                        child: GestureDetector(
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder:
+                                    (context) => NotificationReceivingPage(),
+                              ),
+                            );
+                          },
+                          child: Icon(
+                            size: getFontRegular55Size(context),
+                            Icons.notifications_none_outlined,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                    ],
+                  ),
+                ],
+                title: Text(
+                  'Prayer Times',
+                  style: GoogleFonts.beVietnamPro(
+                    fontSize: getFontRegular55Size(context),
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(width: 10),
-              ],
+                backgroundColor: Colors.white,
+                elevation: 0,
+                centerTitle: false,
+              ),
             ),
-          ],
-          title: Text(
-            'Prayer Times',
-            style: GoogleFonts.beVietnamPro(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          backgroundColor: Colors.white,
-          elevation: 0,
-          centerTitle: false,
-        ),
-      ),
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            backgroundColor: Colors.white,
+            body: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      width: screenWidth * 0.12,
-                      height: screenHeight * 0.055,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.3),
-                        borderRadius: BorderRadius.circular(5),
-                        border: Border.all(
-                          color: Colors.grey.withOpacity(0.2),
-                          width: 1,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.grey.withOpacity(0.1),
-                            spreadRadius: 2,
-                            blurRadius: 5,
-                            offset: const Offset(0, 0),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Container(
+                            width: screenWidth * 0.12,
+                            height: screenHeight * 0.055,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.3),
+                              borderRadius: BorderRadius.circular(5),
+                              border: Border.all(
+                                color: Colors.grey.withOpacity(0.2),
+                                width: 1,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.grey.withOpacity(0.1),
+                                  spreadRadius: 2,
+                                  blurRadius: 5,
+                                  offset: const Offset(0, 0),
+                                ),
+                              ],
+                            ),
+                            child: IconButton(
+                              icon: const Icon(
+                                Icons.arrow_back_ios_new,
+                                size: 18,
+                              ),
+                              onPressed: _goToPreviousDay,
+                              padding: EdgeInsets.zero,
+                              constraints: BoxConstraints(),
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () => _pickDate(context),
+                            child: Text(
+                              getFormattedDate(selectedDate),
+                              style: GoogleFonts.beVietnamPro(fontSize: 16),
+                            ),
+                          ),
+                          Container(
+                            width: screenWidth * 0.12,
+                            height: screenHeight * 0.055,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.3),
+                              borderRadius: BorderRadius.circular(5),
+                              border: Border.all(
+                                color: Colors.grey.withOpacity(0.2),
+                                width: 1,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.grey.withOpacity(0.1),
+                                  spreadRadius: 2,
+                                  blurRadius: 5,
+                                  offset: const Offset(0, 0),
+                                ),
+                              ],
+                            ),
+                            child: IconButton(
+                              icon: const Icon(
+                                Icons.arrow_forward_ios,
+                                size: 18,
+                              ),
+                              onPressed: _goToNextDay,
+                            ),
                           ),
                         ],
                       ),
-                      child: IconButton(
-                        icon: const Icon(Icons.arrow_back_ios_new, size: 18),
-                        onPressed: _goToPreviousDay,
-                        padding: EdgeInsets.zero,
-                        constraints: BoxConstraints(),
-                      ),
                     ),
-                    GestureDetector(
-                      onTap: () => _pickDate(context),
-                      child: Text(
-                        getFormattedDate(selectedDate),
-                        style: GoogleFonts.beVietnamPro(fontSize: 16),
-                      ),
-                    ),
+                    SizedBox(height: 5),
                     Container(
-                      width: screenWidth * 0.12,
-                      height: screenHeight * 0.055,
+                      height: 1,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.3),
-                        borderRadius: BorderRadius.circular(5),
-                        border: Border.all(
-                          color: Colors.grey.withOpacity(0.2),
-                          width: 1,
-                        ),
+                        color: Colors.grey.withOpacity(0.1),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.grey.withOpacity(0.1),
-                            spreadRadius: 2,
-                            blurRadius: 5,
-                            offset: const Offset(0, 0),
+                            color: Colors.grey.withOpacity(0.2),
+                            spreadRadius: 1,
+                            blurRadius: 7,
+                            offset: const Offset(0, 4),
                           ),
                         ],
                       ),
-                      child: IconButton(
-                        icon: const Icon(Icons.arrow_forward_ios, size: 18),
-                        onPressed: _goToNextDay,
+                    ),
+                    Expanded(
+                      child: Stack(
+                        children: [
+                          ListView.builder(
+                            padding: EdgeInsets.only(top: screenHeight * 0.01),
+                            itemCount: _prayerDetails.length,
+                            itemBuilder: (context, index) {
+                              final prayerName = _prayerDetails[index]['name']!;
+                              final prayerArabic =
+                                  _prayerDetails[index]['arabic']!;
+                              String prayerTimeValue;
+                              switch (prayerName) {
+                                case 'Fajr':
+                                  prayerTimeValue = prayerTimes.fajr;
+                                  break;
+                                case 'Dhuhr':
+                                  prayerTimeValue = prayerTimes.dhuhr;
+                                  break;
+                                case 'Asr':
+                                  prayerTimeValue = prayerTimes.asr;
+                                  break;
+                                case 'Maghrib':
+                                  prayerTimeValue = prayerTimes.maghrib;
+                                  break;
+                                case 'Isha':
+                                  prayerTimeValue = prayerTimes.isha;
+                                  break;
+                                default:
+                                  prayerTimeValue = '--:--';
+                              }
+                              return PrayerCard(
+                                imagePath: _prayerController.getImagePath(
+                                  prayerName,
+                                ),
+                                title: prayerName,
+                                arabic: prayerArabic,
+                                time: prayerTimeValue,
+                                status: _prayerController.getPrayerStatus(
+                                  prayerName,
+                                  selectedDate,
+                                  prayerTimes,
+                                ),
+                                statusColor: _prayerController.getStatusColor(
+                                  _prayerController.getPrayerStatus(
+                                    prayerName,
+                                    selectedDate,
+                                    prayerTimes,
+                                  ),
+                                ),
+                                trailingIcon:
+                                    _prayerController.getPrayerStatus(
+                                              prayerName,
+                                              selectedDate,
+                                              prayerTimes,
+                                            ) ==
+                                            "Upcoming"
+                                        ? Icons.notifications
+                                        : null,
+                              );
+                            },
+                          ),
+                          if (!hasActiveSubscription && customerDetails != null)
+                            Positioned.fill(
+                              child: Container(
+                                color: Colors.white.withOpacity(0.8),
+                                child: Center(),
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                   ],
                 ),
               ),
-              SizedBox(height: 5),
-              Container(
-                height: 1,
-                decoration: BoxDecoration(
-                  color: Colors.grey.withOpacity(0.1),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.withOpacity(0.2),
-                      spreadRadius: 1,
-                      blurRadius: 7,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child:  ListView(
-                  padding: EdgeInsets.only(top: screenHeight * 0.01),
-                  children: [
-                    // Fajr Prayer Card
-                    // Fajr Prayer Card
-                    PrayerCard(
-                      imagePath: _prayerController.getImagePath('Fajr'),
-                      title: 'Fajr',
-                      arabic: 'الفجر',
-                      time: prayerTimes.fajr,
-                      status: _prayerController.getPrayerStatus('Fajr', selectedDate, prayerTimes),
-                      statusColor: _prayerController.getStatusColor(
-                          _prayerController.getPrayerStatus('Fajr', selectedDate, prayerTimes)
-                      ),
-                      trailingIcon: Icons.notifications,
-                    ),
-
-// Dhuhr Prayer Card
-                    PrayerCard(
-                      imagePath: _prayerController.getImagePath('Dhuhr'),
-                      title: 'Dhuhr',
-                      arabic: 'الظهر',
-                      time: prayerTimes.dhuhr,
-                      status: _prayerController.getPrayerStatus('Dhuhr', selectedDate, prayerTimes),
-                      statusColor: _prayerController.getStatusColor(
-                          _prayerController.getPrayerStatus('Dhuhr', selectedDate, prayerTimes)
-                      ),
-                      trailingIcon: Icons.notifications,
-                    ),
-
-// Asr Prayer Card
-                    PrayerCard(
-                      imagePath: _prayerController.getImagePath('Asr'),
-                      title: 'Asr',
-                      arabic: 'العصر',
-                      time: prayerTimes.asr,
-                      status: _prayerController.getPrayerStatus('Asr', selectedDate, prayerTimes),
-                      statusColor: _prayerController.getStatusColor(
-                          _prayerController.getPrayerStatus('Asr', selectedDate, prayerTimes)
-                      ),
-                      // No trailing icon for Asr as per your original code
-                    ),
-
-// Maghrib Prayer Card
-                    PrayerCard(
-                      imagePath: _prayerController.getImagePath('Maghrib'),
-                      title: 'Maghrib',
-                      arabic: 'المغرب',
-                      time: prayerTimes.maghrib,
-                      status: _prayerController.getPrayerStatus('Maghrib', selectedDate, prayerTimes),
-                      statusColor: _prayerController.getStatusColor(
-                          _prayerController.getPrayerStatus('Maghrib', selectedDate, prayerTimes)
-                      ),
-                      // No trailing icon for Maghrib as per your original code
-                    ),
-
-// Isha Prayer Card
-                    PrayerCard(
-                      imagePath: _prayerController.getImagePath('Isha'),
-                      title: 'Isha',
-                      arabic: 'العشاء',
-                      time: prayerTimes.isha,
-                      status: _prayerController.getPrayerStatus('Isha', selectedDate, prayerTimes),
-                      statusColor: _prayerController.getStatusColor(
-                          _prayerController.getPrayerStatus('Isha', selectedDate, prayerTimes)
-                      ),
-                      // No trailing icon for Isha as per your original code
-                    ),
-                  ],
-                ),
-              ),
-            ],
+            ),
           ),
         ),
-      ),
+      ],
     );
   }
 }

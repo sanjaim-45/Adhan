@@ -1,22 +1,61 @@
-// auth_provider.dart
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+
+import '../service/api/tokens/token_service.dart';
 
 class AuthProvider with ChangeNotifier {
-  bool _isLoggedIn = false;
-  bool _isDemoUser = false; // Track if user used demo credentials
+  bool? _isLoggedIn;
+  bool _isOffline = false;
 
-  bool get isLoggedIn => _isLoggedIn;
-  bool get isDemoUser => _isDemoUser;
+  bool? get isLoggedIn => _isLoggedIn;
+  bool get isOffline => _isOffline;
 
-  void login({bool isDemo = false}) {
-    _isLoggedIn = true;
-    _isDemoUser = isDemo; // Set whether it's a demo user
+  Future<void> checkAuthStatus() async {
+    try {
+      // First check if we have tokens
+      final hasRefreshToken = await TokenService.hasRefreshToken();
+      final accessToken = await TokenService.getAccessToken();
+
+      if (hasRefreshToken && accessToken != null) {
+        _isLoggedIn = true;
+      } else {
+        _isLoggedIn = false;
+      }
+      _isOffline = false;
+    } catch (e) {
+      // If we're maintaining session, stay logged in during network errors
+      if (await TokenService.shouldMaintainSession()) {
+        _isLoggedIn = true;
+        _isOffline = true;
+      } else {
+        _isLoggedIn = false;
+      }
+    }
     notifyListeners();
   }
 
-  void logout() {
+  Future<void> softLogin() async {
+    try {
+      if (await TokenService.hasValidTokens()) {
+        _isLoggedIn = true;
+        notifyListeners();
+      }
+    } catch (e) {
+      // Don't clear tokens here - just remain in current state
+      if (kDebugMode) {
+        print('Soft login error: $e');
+      }
+    }
+  }
+
+  Future<void> login() async {
+    _isLoggedIn = true;
+    _isOffline = false;
+    notifyListeners();
+  }
+
+  Future<void> logout() async {
     _isLoggedIn = false;
-    _isDemoUser = false;
+    _isOffline = false;
     notifyListeners();
   }
 }

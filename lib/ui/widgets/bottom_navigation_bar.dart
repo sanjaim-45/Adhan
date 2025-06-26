@@ -15,45 +15,62 @@ class CustomBottomNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
 
-    return BottomNavigationBar(backgroundColor: Colors.white,
-      currentIndex: currentIndex,
-      onTap: onTap,
-      type: BottomNavigationBarType.fixed,
-      selectedLabelStyle:  GoogleFonts.beVietnamPro(fontWeight: FontWeight.w600),
-      unselectedLabelStyle:  GoogleFonts.beVietnamPro(fontWeight: FontWeight.w500),
-      selectedItemColor: const Color(0xFF0C5E38), // Green
-      unselectedItemColor: Colors.black, // Black
-      showSelectedLabels: true,
-      showUnselectedLabels: true,
-      items: [
-        BottomNavigationBarItem(
-          icon: Image.asset(
-            currentIndex == 0
-                ? 'assets/images/bottom_navigaton/home/inactive_home.png'
-                : 'assets/images/bottom_navigaton/home/active_home.png',
-            height: screenHeight * 0.025,
+    return Container(
+      decoration: BoxDecoration(
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.3), // Shadow color
+            spreadRadius: 1,
+            blurRadius: 8,
+            offset: const Offset(0, -3), // Shadow above the nav bar
           ),
-          label: 'Home',
+        ],
+      ),
+      child: BottomNavigationBar(
+        backgroundColor: Colors.white,
+        currentIndex: currentIndex,
+        onTap: onTap,
+        type: BottomNavigationBarType.fixed,
+        selectedLabelStyle: GoogleFonts.beVietnamPro(
+          fontWeight: FontWeight.w600,
         ),
-        BottomNavigationBarItem(
-          icon: Image.asset(
-            currentIndex == 1
-                ? 'assets/images/bottom_navigaton/history/prayer_active.png'
-                : 'assets/images/bottom_navigaton/history/prayer_inactive.png',
-            height: screenHeight * 0.025,
+        unselectedLabelStyle: GoogleFonts.beVietnamPro(
+          fontWeight: FontWeight.w500,
+        ),
+        selectedItemColor: const Color(0xFF0C5E38), // Green
+        unselectedItemColor: Colors.black, // Black
+        showSelectedLabels: true,
+        showUnselectedLabels: true,
+        items: [
+          BottomNavigationBarItem(
+            icon: Image.asset(
+              currentIndex == 0
+                  ? 'assets/images/bottom_navigaton/home/inactive_home.png'
+                  : 'assets/images/bottom_navigaton/home/active_home.png',
+              height: screenHeight * 0.025,
+            ),
+            label: 'Home',
           ),
-          label: 'Prayer Times',
-        ),
-        BottomNavigationBarItem(
-          icon: Image.asset(
-            currentIndex == 2
-                ? 'assets/images/bottom_navigaton/profile/acitve_users.png'
-                : 'assets/images/bottom_navigaton/profile/li_user.png',
-            height: screenHeight * 0.025,
+          BottomNavigationBarItem(
+            icon: Image.asset(
+              currentIndex == 1
+                  ? 'assets/images/bottom_navigaton/history/prayer_active.png'
+                  : 'assets/images/bottom_navigaton/history/prayer_inactive.png',
+              height: screenHeight * 0.025,
+            ),
+            label: 'Prayer Times',
           ),
-          label: 'Profile',
-        ),
-      ],
+          BottomNavigationBarItem(
+            icon: Image.asset(
+              currentIndex == 2
+                  ? 'assets/images/bottom_navigaton/profile/acitve_users.png'
+                  : 'assets/images/bottom_navigaton/profile/li_user.png',
+              height: screenHeight * 0.025,
+            ),
+            label: 'Profile',
+          ),
+        ],
+      ),
     );
   }
 }

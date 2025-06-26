@@ -13,7 +13,6 @@ class AboutUsPage extends StatefulWidget {
 class _AboutUsPageState extends State<AboutUsPage> {
   bool isPasswordVisible = false;
   final _formKey = GlobalKey<FormState>();
-  bool _isAccountCreated = false;
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +22,6 @@ class _AboutUsPageState extends State<AboutUsPage> {
     const overlapHeight = 20.0;
 
     return Scaffold(
-      backgroundColor: Colors.red,
       body: Stack(
         children: [
           // Background image with rounded bottom
@@ -75,7 +73,7 @@ class _AboutUsPageState extends State<AboutUsPage> {
                     child: Icon(
                       Icons.arrow_back_ios_new,
                       size: screenWidth * 0.043,
-                      color: Colors.white,
+                      color: Colors.black,
                     ),
                   ),
                   SizedBox(width: screenWidth * 0.03),
@@ -83,7 +81,7 @@ class _AboutUsPageState extends State<AboutUsPage> {
                     "About Us",
                     style: GoogleFonts.beVietnamPro(
                       color: Colors.white,
-                      fontSize: getDynamicFontSize(context,0.05),
+                      fontSize: getDynamicFontSize(context, 0.05),
                       letterSpacing: -0.5,
                       fontWeight: FontWeight.bold,
                     ),
@@ -106,13 +104,15 @@ class _AboutUsPageState extends State<AboutUsPage> {
               ),
               child: Container(
                 decoration: const BoxDecoration(
-                    color: Colors.white,
-                    boxShadow: [
+                  color: Colors.white,
+                  boxShadow: [
                     BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 10,
-                    offset: Offset(0, -5),
-                    )]),
+                      color: Colors.black12,
+                      blurRadius: 10,
+                      offset: Offset(0, -5),
+                    ),
+                  ],
+                ),
                 child: SingleChildScrollView(
                   padding: EdgeInsets.symmetric(
                     horizontal: contentPadding,
@@ -125,7 +125,7 @@ class _AboutUsPageState extends State<AboutUsPage> {
                       Text(
                         "Introduction",
                         style: GoogleFonts.beVietnamPro(
-                          fontSize:getFontRegularSize(context),
+                          fontSize: getFontBoldSize(context),
                           letterSpacing: -0.5,
                           fontWeight: FontWeight.bold,
                         ),
@@ -134,7 +134,7 @@ class _AboutUsPageState extends State<AboutUsPage> {
                       Text(
                         "\" Our Mosque is dedicated to serving our community by connecting hearts through faith and prayer. Established in [Year], we aim to bring the beauty of prayer closer to every home.\"",
                         style: GoogleFonts.beVietnamPro(
-                          fontSize:getFontRegularSize(context),
+                          fontSize: getFontRegularSize(context),
                           letterSpacing: -0.5,
                           color: Colors.black87,
                         ),
@@ -145,7 +145,7 @@ class _AboutUsPageState extends State<AboutUsPage> {
                       Text(
                         "App Purpose",
                         style: GoogleFonts.beVietnamPro(
-                          fontSize:getFontRegularSize(context),
+                          fontSize: getFontBoldSize(context),
                           letterSpacing: -0.5,
                           fontWeight: FontWeight.bold,
                         ),
@@ -154,17 +154,18 @@ class _AboutUsPageState extends State<AboutUsPage> {
                       Text(
                         "Why this app was created:",
                         style: GoogleFonts.beVietnamPro(
-                          fontSize:getFontRegularSize(context),
+                          fontSize: getFontRegularSize(context),
                           letterSpacing: -0.5,
+                          color: const Color(0xFF767676),
                         ),
                       ),
                       SizedBox(height: screenHeight * 0.01),
                       Text(
                         "\"With prayerunites, we bring the sound of prayer into your home. Our subscription service provides users with a speaker, so they can stay connected to the mosque anytime.\"",
                         style: GoogleFonts.beVietnamPro(
-                          fontSize:getFontRegularSize(context),
+                          fontSize: getFontRegularSize(context),
                           letterSpacing: -0.5,
-                          color: Colors.black87,
+                          color: const Color(0xFF767676),
                         ),
                       ),
                       SizedBox(height: screenHeight * 0.03),
@@ -173,7 +174,7 @@ class _AboutUsPageState extends State<AboutUsPage> {
                       Text(
                         "Features",
                         style: GoogleFonts.beVietnamPro(
-                          fontSize:getFontRegularSize(context),
+                          fontSize: getFontBoldSize(context),
                           letterSpacing: -0.5,
                           fontWeight: FontWeight.bold,
                         ),
@@ -183,8 +184,14 @@ class _AboutUsPageState extends State<AboutUsPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _featureBullet("Speaker delivery", screenWidth),
-                          _featureBullet("Live prayer broadcasting", screenWidth),
-                          _featureBullet("Prayer time notifications", screenWidth),
+                          _featureBullet(
+                            "Live prayer broadcasting",
+                            screenWidth,
+                          ),
+                          _featureBullet(
+                            "Prayer time notifications",
+                            screenWidth,
+                          ),
                         ],
                       ),
                     ],
@@ -206,10 +213,10 @@ class _AboutUsPageState extends State<AboutUsPage> {
         children: [
           Container(
             margin: EdgeInsets.only(top: screenWidth * 0.012),
-            height: screenWidth * 0.02,
-            width: screenWidth * 0.02,
+            height: screenWidth * 0.019,
+            width: screenWidth * 0.019,
             decoration: const BoxDecoration(
-              color: Colors.black,
+              color: Color(0xFF767676),
               shape: BoxShape.circle,
             ),
           ),
@@ -217,8 +224,11 @@ class _AboutUsPageState extends State<AboutUsPage> {
           Expanded(
             child: Text(
               text,
-              style: GoogleFonts.beVietnamPro(fontSize:getFontRegularSize(context),
-    letterSpacing: -0.5,),
+              style: GoogleFonts.beVietnamPro(
+                fontSize: getFontRegularSize(context),
+                letterSpacing: -0.5,
+                color: const Color(0xFF767676),
+              ),
             ),
           ),
         ],

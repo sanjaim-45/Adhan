@@ -5,16 +5,18 @@ class UserDetails {
   final String fullName;
   final String mosque;
   final String mosqueLocation;
+  final String? profileImage;
   final SubscriptionDetails? subscription;
 
   UserDetails({
     required this.fullName,
     required this.mosque,
     required this.mosqueLocation,
+    this.profileImage,
     this.subscription,
   });
 
-  String get displayMosque => mosque.isEmpty ? 'Mosque ' : mosque;
+  String get displayMosque => mosque.isEmpty ? 'Mosque' : mosque;
   String get displayMosqueLocation =>
       mosqueLocation.isEmpty ? 'Masjid Al-Rahma – Kuwait' : mosqueLocation;
 }
@@ -40,18 +42,18 @@ class SubscriptionDetails {
 
 class UserDetailsProvider with ChangeNotifier {
   UserDetails? _userDetails;
-
+  bool _isLoading = false;
+  bool get isLoading => _isLoading;
   UserDetails? get userDetails => _userDetails;
 
   Future<void> loadUserDetails() async {
     final prefs = await SharedPreferences.getInstance();
 
-    // Load basic user details
     final fullName = prefs.getString('full_name') ?? '';
     final mosque = prefs.getString('mosque') ?? '';
     final mosqueLocation = prefs.getString('mosque_location') ?? '';
+    final profileImage = prefs.getString('profile_image');
 
-    // Load subscription details if they exist
     SubscriptionDetails? subscription;
     if (prefs.containsKey('subscription_plan_name')) {
       subscription = SubscriptionDetails(
@@ -68,6 +70,7 @@ class UserDetailsProvider with ChangeNotifier {
       mosque: mosque,
       mosqueLocation: mosqueLocation,
       subscription: subscription,
+      profileImage: profileImage,
     );
     notifyListeners();
   }
@@ -76,17 +79,22 @@ class UserDetailsProvider with ChangeNotifier {
     required String fullName,
     required String mosque,
     required String mosqueLocation,
+    String? profileImage,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('full_name', fullName);
     await prefs.setString('mosque', mosque);
     await prefs.setString('mosque_location', mosqueLocation);
+    if (profileImage != null) {
+      await prefs.setString('profile_image', profileImage);
+    }
 
     _userDetails = UserDetails(
       fullName: fullName,
       mosque: mosque,
       mosqueLocation: mosqueLocation,
-      subscription: _userDetails?.subscription, // Preserve existing subscription
+      profileImage: profileImage ?? _userDetails?.profileImage,
+      subscription: _userDetails?.subscription,
     );
     notifyListeners();
   }
@@ -99,20 +107,18 @@ class UserDetailsProvider with ChangeNotifier {
     required int remainingDays,
   }) async {
     final prefs = await SharedPreferences.getInstance();
-
-    // Save subscription details
     await prefs.setString('subscription_plan_name', planName);
     await prefs.setString('subscription_billing_cycle', billingCycle);
     await prefs.setDouble('subscription_price', price);
     await prefs.setString('subscription_currency', currency);
     await prefs.setInt('subscription_remaining_days', remainingDays);
 
-    // Update current user details
     if (_userDetails != null) {
       _userDetails = UserDetails(
         fullName: _userDetails!.fullName,
         mosque: _userDetails!.mosque,
         mosqueLocation: _userDetails!.mosqueLocation,
+        profileImage: _userDetails!.profileImage,
         subscription: SubscriptionDetails(
           planName: planName,
           billingCycle: billingCycle,
@@ -127,20 +133,18 @@ class UserDetailsProvider with ChangeNotifier {
 
   Future<void> clearSubscription() async {
     final prefs = await SharedPreferences.getInstance();
-
-    // Remove subscription keys
     await prefs.remove('subscription_plan_name');
     await prefs.remove('subscription_billing_cycle');
     await prefs.remove('subscription_price');
     await prefs.remove('subscription_currency');
     await prefs.remove('subscription_remaining_days');
 
-    // Update current user details
     if (_userDetails != null) {
       _userDetails = UserDetails(
         fullName: _userDetails!.fullName,
         mosque: _userDetails!.mosque,
         mosqueLocation: _userDetails!.mosqueLocation,
+        profileImage: _userDetails!.profileImage,
         subscription: null,
       );
       notifyListeners();
@@ -149,12 +153,11 @@ class UserDetailsProvider with ChangeNotifier {
 
   Future<void> clearUserDetails() async {
     final prefs = await SharedPreferences.getInstance();
-
-    // Clear all user data including subscription
     await prefs.remove('full_name');
     await prefs.remove('mosque');
     await prefs.remove('mosque_location');
-    await clearSubscription(); // This will clear subscription details
+    await prefs.remove('profile_image');
+    await clearSubscription();
 
     _userDetails = null;
     notifyListeners();

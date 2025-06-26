@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../utils/custom_appbar.dart';
 import '../../../utils/font_mediaquery.dart';
 
 class ContactUsPage extends StatelessWidget {
@@ -11,48 +12,12 @@ class ContactUsPage extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(kToolbarHeight),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.1),
-                spreadRadius: 1,
-                blurRadius: 8,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: AppBar(
-            backgroundColor: Colors.white,
-            elevation: 0,
-            leadingWidth: 30, // Adjust the width of the leading icon
-            leading: Padding(
-              padding: const EdgeInsets.only(left: 8.0),
-              child: IconButton(
-                icon: Icon(Icons.arrow_back_ios_new,                      size: screenWidth * 0.043,
-                ),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ),
-            title: Text(
-              'Contact Us',
-              style: GoogleFonts.beVietnamPro(
-                color: Colors.black,
-                letterSpacing: -0.5,
-                fontSize: getDynamicFontSize(context,0.05),
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-
-        ),
+      appBar: CustomAppBar(
+        title: 'Contact Us',
+        onBack: () => Navigator.of(context).pop(),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-
           padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.05),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -63,7 +28,7 @@ class ContactUsPage extends StatelessWidget {
               Text(
                 "We're Here to Help",
                 style: GoogleFonts.beVietnamPro(
-                  fontSize: getFontRegularSize(context),
+                  fontSize: getFontBoldSize(context),
                   letterSpacing: -0.5,
                   fontWeight: FontWeight.bold,
                 ),
@@ -95,7 +60,7 @@ class ContactUsPage extends StatelessWidget {
                     Text(
                       "Contact Information",
                       style: GoogleFonts.beVietnamPro(
-                        fontSize: getFontRegularSize(context),
+                        fontSize: getFontBoldSize(context),
                         letterSpacing: -0.5,
                         fontWeight: FontWeight.bold,
                       ),
@@ -188,7 +153,7 @@ class ContactUsPage extends StatelessWidget {
               Text(
                 "App Support",
                 style: GoogleFonts.beVietnamPro(
-                  fontSize: getFontRegularSize(context),
+                  fontSize: getFontBoldSize(context),
                   letterSpacing: -0.5,
                   fontWeight: FontWeight.bold,
                 ),
@@ -202,9 +167,21 @@ class ContactUsPage extends StatelessWidget {
                 ),
               ),
               SizedBox(height: screenHeight * 0.01),
-              bulletPoint(context, "Speaker not working?", "Try restarting the device and ensure it’s connected to power."),
-              bulletPoint(context, "Subscription not showing?", "Go to My Account > Restore Subscription"),
-              bulletPoint(context, "Didn’t receive your speaker yet?", "Check status in My Orders or contact us directly."),
+              bulletPoint(
+                context,
+                "Speaker not working?",
+                "Try restarting the device and ensure it’s connected to power.",
+              ),
+              bulletPoint(
+                context,
+                "Subscription not showing?",
+                "Go to My Account > Restore Subscription",
+              ),
+              bulletPoint(
+                context,
+                "Didn’t receive your speaker yet?",
+                "Check status in My Orders or contact us directly.",
+              ),
 
               SizedBox(height: screenHeight * 0.01),
 
@@ -212,7 +189,7 @@ class ContactUsPage extends StatelessWidget {
               Text(
                 "Support Hours",
                 style: GoogleFonts.beVietnamPro(
-                  fontSize: getFontRegularSize(context),
+                  fontSize: getFontBoldSize(context),
                   letterSpacing: -0.5,
                   fontWeight: FontWeight.bold,
                 ),
@@ -250,7 +227,8 @@ class ContactUsPage extends StatelessWidget {
                 text: "$title\n",
                 style: GoogleFonts.beVietnamPro(
                   fontSize: getFontRegularSize(context),
-                  letterSpacing: -0.5,                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.5,
+                  fontWeight: FontWeight.w600,
                   color: Colors.black,
                 ),
                 children: [
@@ -258,7 +236,8 @@ class ContactUsPage extends StatelessWidget {
                     text: "→ $description",
                     style: GoogleFonts.beVietnamPro(
                       fontSize: getFontRegular35Size(context),
-                      letterSpacing: -0.5,                      fontWeight: FontWeight.normal,
+                      letterSpacing: -0.5,
+                      fontWeight: FontWeight.normal,
                       color: Colors.black87,
                     ),
                   ),

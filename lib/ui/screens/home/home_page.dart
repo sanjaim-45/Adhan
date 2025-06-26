@@ -1,18 +1,26 @@
-// lib/views/prayer/prayer_home_page.dart
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter/services.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:geolocator/geolocator.dart' as geo;
 import 'package:http/http.dart' as http;
-import 'package:intl/intl.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:prayerunitesss/ui/screens/login_page/login_page.dart';
+import 'package:prayerunitesss/utils/app_urls.dart';
+import 'package:prayerunitesss/utils/home/home_utils.dart';
 import 'package:provider/provider.dart';
+
+import '../../../model/api/customer/customer_all_details_model/customer_all_details.dart';
 import '../../../model/api/prayer/prayer_times.dart';
 import '../../../providers/auth_providers.dart';
 import '../../../providers/prayer_provider/prayer_timing_provider.dart';
+import '../../../service/api/customer/customer_service_api.dart';
 import '../../../service/api/prayer/prayer_timing_api.dart';
-import '../../../utils/font_mediaquery.dart';
-import '../../widgets/prayer_card.dart';
-import '../notification/notification_receiving_page.dart';
-import '../subscription/upgrade.dart';
+import '../../../utils/home/positioned_reuse_widget.dart';
+import 'home_page_mosque_header.dart';
+import 'my_devices_and_prayers.dart';
 
 class PrayerHomePage extends StatefulWidget {
   const PrayerHomePage({super.key});
@@ -21,14 +29,14 @@ class PrayerHomePage extends StatefulWidget {
   State<PrayerHomePage> createState() => _PrayerHomePageState();
 }
 
-class _PrayerHomePageState extends State<PrayerHomePage> with AutomaticKeepAliveClientMixin {
+class _PrayerHomePageState extends State<PrayerHomePage>
+    with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
-
+  StreamSubscription<geo.ServiceStatus>? _locationStatusSubscription;
   DateTime selectedDate = DateTime.now();
-  // Map<String, String> prayerTimes = {};
-  bool isLoading = true;
-  String errorMessage = '';
+  bool hasActiveSubscription = false;
+
   PrayerTimes prayerTimes = PrayerTimes(
     fajr: '--:--',
     dhuhr: '--:--',
@@ -36,13 +44,135 @@ class _PrayerHomePageState extends State<PrayerHomePage> with AutomaticKeepAlive
     maghrib: '--:--',
     isha: '--:--',
   );
+  bool isLoading = true;
+  String errorMessage = '';
   late PrayerController _prayerController;
+  Timer? _timer;
+  Duration _timeRemaining = const Duration();
+  Map<String, dynamic> _nextPrayer = {
+    'name': '--',
+    'arabic': '--',
+    'time': DateTime.now(),
+  };
+  DateTime? currentBackPressTime;
+  CustomerAllDetails? customerDetails;
 
   @override
   void initState() {
     super.initState();
+
     _prayerController = PrayerController(PrayerService(http.Client()), context);
-    _fetchPrayerTimes();
+    _checkPermissions();
+    _initAlarms();
+
+    _fetchCustomerDetails();
+
+    _initLocationMonitoring(); // Handles initial fetch and listens for changes
+    _locationStatusSubscription = HomeUtils.locationServiceStatusStream.listen((
+      geo.ServiceStatus status,
+    ) async {
+      if (status == geo.ServiceStatus.enabled && mounted) {
+        await _fetchPrayerTimes();
+      }
+    });
+    _startTimer();
+  }
+
+  Future<void> _initAlarms() async {
+    // Request notification permission
+    final status = await Permission.notification.request();
+    if (status.isGranted) {
+      // Schedule alarms when prayer times are loaded
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _fetchPrayerTimes();
+      });
+    }
+  }
+
+  Future<void> _fetchCustomerDetails() async {
+    try {
+      final customerServices = CustomerServices(baseUrl: AppUrls.appUrl);
+      final details = await customerServices.getAllCustomerDetails();
+      if (mounted) {
+        setState(() {
+          customerDetails = details;
+        });
+      }
+
+      hasActiveSubscription =
+          customerDetails!.data?.devices.any(
+            (device) => device.subscription?.subscriptionStatus == true,
+          ) ??
+          false;
+    } catch (e) {
+      debugPrint('Error fetching customer details: $e');
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+
+    _locationStatusSubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _checkPermissionsAndFetch() async {
+    // First check location permission
+    final hasPermission = await HomeUtils.checkLocationPermission(context);
+    if (!hasPermission) return;
+
+    // If we have permission, fetch prayer times
+    await _fetchPrayerTimes();
+  }
+
+  Future<void> _checkPermissions() async {
+    try {
+      // Check location permission (for prayer times)
+      var locationStatus = await Permission.location.status;
+      if (!locationStatus.isGranted) {
+        locationStatus = await Permission.location.request();
+        if (!locationStatus.isGranted) {
+          if (mounted) HomeUtils.showPermissionDeniedDialog(context);
+        }
+      }
+
+      // Check notification permission (if your app uses notifications)
+      var notificationStatus = await Permission.notification.status;
+      if (!notificationStatus.isGranted) {
+        notificationStatus = await Permission.notification.request();
+      }
+
+      // For Android-specific permissions
+      if (Platform.isAndroid) {
+        // Check storage permission
+        var storageStatus = await Permission.storage.status;
+        if (!storageStatus.isGranted) {
+          storageStatus = await Permission.storage.request();
+        }
+
+        // Check microphone permission if needed
+        var micStatus = await Permission.microphone.status;
+        if (!micStatus.isGranted) {
+          micStatus = await Permission.microphone.request();
+        }
+      }
+    } on PlatformException catch (e) {
+      debugPrint("Permission error: ${e.toString()}");
+      if (!mounted) return;
+    }
+  }
+
+  void _startTimer() {
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
+
+      final now = DateTime.now();
+      _nextPrayer = HomeUtils().getNextPrayer(prayerTimes, now);
+      _timeRemaining = _nextPrayer['time'].difference(now);
+
+      setState(() {});
+    });
   }
 
   Future<void> _fetchPrayerTimes() async {
@@ -61,165 +191,49 @@ class _PrayerHomePageState extends State<PrayerHomePage> with AutomaticKeepAlive
         prayerTimes = times;
         isLoading = false;
       });
+
+      // Schedule the new prayer alerts
+
+      _timer?.cancel();
+      _startTimer();
     } catch (e) {
       if (!mounted) return;
 
       setState(() {
-        errorMessage = e.toString().contains('authenticated') || e.toString().contains('Session expired')
-            ? 'Please login again.'
-            : 'Failed to load prayer times. Please try again.';
+        errorMessage =
+            e.toString().contains('authenticated') ||
+                    e.toString().contains('Session expired')
+                ? 'Please login again.'
+                : 'Failed to load prayer times. Please try again.';
         isLoading = false;
       });
 
-      if (e.toString().contains('Location services')) {
-        _showEnableLocationDialog(context);
-      } else if (e.toString().contains('Location permissions')) {
-        _showPermissionDeniedDialog(context);
-      } else if (e.toString().contains('authenticated') || e.toString().contains('Session expired')) {
-        Navigator.pushReplacementNamed(context, '/login');
+      if (e.toString().contains('Location services') ||
+          e.toString().contains('Location permission')) {
+        // The overlay is already shown by checkLocationPermission
+      } else if (e.toString().contains('authenticated') ||
+          e.toString().contains('Session expired')) {
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => LoginPage()),
+          );
+        }
       }
     }
   }
 
-  Future<void> _showEnableLocationDialog(BuildContext context) async {
-    return showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Location Services Disabled'),
-          content: SingleChildScrollView(
-            child: ListBody(
-              children: <Widget>[
-                Text('To get accurate prayer times, please enable location services.'),
-              ],
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: Text('Cancel'),
-              onPressed: () {
-                Navigator.of(context).pop();
-                setState(() {
-                  errorMessage = 'Location services required for prayer times';
-                });
-              },
-            ),
-            TextButton(
-              child: Text('Enable'),
-              onPressed: () async {
-                Navigator.of(context).pop();
-                await Geolocator.openLocationSettings();
-                // Retry after user enables location
-                await Future.delayed(Duration(seconds: 1));
-                _fetchPrayerTimes();
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
+  void _initLocationMonitoring() {
+    // Listen for location service status changes
+    _locationStatusSubscription = HomeUtils.locationServiceStatusStream.listen((
+      geo.ServiceStatus status,
+    ) async {
+      if (status == geo.ServiceStatus.enabled && mounted) {
+        await _fetchPrayerTimes();
+      }
+    });
 
-  Future<void> _showPermissionDeniedDialog(BuildContext context) async {
-    return showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-          ),
-          elevation: 4,
-          titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-          contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
-          actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          title: Row(
-            children: [
-              Icon(
-                Icons.location_on_rounded,
-                color: Theme.of(context).colorScheme.primary,
-                size: 28,
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Location Access Needed',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'To provide accurate prayer times based on your location, we need access to your device location.',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Please grant permission in settings.',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            OutlinedButton(
-              style: OutlinedButton.styleFrom(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                side: BorderSide(
-                  color: Theme.of(context).colorScheme.outline,
-                ),
-              ),
-              onPressed: () {
-                Navigator.of(context).pop();
-                setState(() {
-                  errorMessage = 'Location permission required for prayer times';
-                });
-              },
-              child: Text(
-                'Not Now',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurface,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            FilledButton(
-              style: FilledButton.styleFrom(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                backgroundColor: Theme.of(context).colorScheme.primary,
-              ),
-              onPressed: () async {
-                Navigator.of(context).pop();
-                await Geolocator.openAppSettings();
-                // Retry after user grants permission
-                await Future.delayed(const Duration(seconds: 1));
-                _fetchPrayerTimes();
-              },
-              child: Text(
-                'Open Settings',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onPrimary,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
+    // Initial check
+    _checkPermissionsAndFetch();
   }
 
   @override
@@ -230,339 +244,85 @@ class _PrayerHomePageState extends State<PrayerHomePage> with AutomaticKeepAlive
     final screenHeight = mediaQuery.size.height;
     final screenWidth = mediaQuery.size.width;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF0C5E38),
-      body: Column(
-        children: [
-          Stack(
-            children: [
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.only(
-                  top: screenHeight * 0.04,
-                  right: screenWidth * 0.05,
-                ),
-                decoration: const BoxDecoration(
-                  gradient: RadialGradient(
-                    center: Alignment.center,
-                    radius: 0.8,
-                    colors: [Color(0xFF2E7D32), Color(0xFF004408)],
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: EdgeInsets.only(left: screenWidth * 0.05),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Image.asset(
-                            "assets/images/name_logo.png",
-                            height: screenHeight * 0.08,
-                            width: screenWidth * 0.3,
-                          ),
-                          Row(
-                            children: [
-                                ElevatedButton(
-                                  onPressed: () {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (context) => SubscriptionPage(),
-                                      ),
-                                    );
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFFA1812E),
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: screenWidth * 0.03,
-                                      vertical: screenHeight * 0.015,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    "Upgrade",
-                                    style: GoogleFonts.beVietnamPro(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: getFontRegularSize(context),
-                                    ),
-                                  ),
-                                ),
-                              SizedBox(width: screenWidth * 0.02),
-                              CircleAvatar(
-                                radius: screenWidth * 0.05,
-                                backgroundColor: Colors.white,
-                                child: GestureDetector(
-                                  onTap: () {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (context) => NotificationReceivingPage(),
-                                      ),
-                                    );
-                                  },
-                                  child: Icon(
-                                    Icons.notifications_none_outlined,
-                                    size: screenWidth * 0.05,
-                                    color: Colors.black,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: EdgeInsets.only(
-                            left: screenWidth * 0.05,
-                            top: screenHeight * 0.010,
-                          ),
-                          child: Row(
-                            children: [
-                              Text(
-                                "NEXT PRAYER IN",
-                                style: GoogleFonts.beVietnamPro(
-                                  color: Colors.white70,
-                                  fontSize: screenWidth * 0.03,
-                                ),
-                              ),
-                              SizedBox(width: screenWidth * 0.02),
-                              Container(
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFD4AF37),
-                                  borderRadius: BorderRadius.circular(5),
-                                ),
-                                padding: EdgeInsets.symmetric(
-                                  vertical: screenHeight * 0.004,
-                                  horizontal: screenWidth * 0.02,
-                                ),
-                                child: Text(
-                                  "51.25",
-                                  style: GoogleFonts.beVietnamPro(
-                                    fontSize: screenWidth * 0.025,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Padding(
-                          padding: EdgeInsets.only(
-                            left: screenWidth * 0.05,
-                            top: screenHeight * 0.01,
-                          ),
-                          child: Text(
-                            "Maghrib",
-                            style: GoogleFonts.beVietnamPro(
-                              fontSize: screenWidth * 0.08,
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        Padding(
-                          padding: EdgeInsets.only(left: screenWidth * 0.05),
-                          child: Text(
-                            "المغرب",
-                            style: GoogleFonts.beVietnamPro(
-                              color: Colors.white,
-                              fontSize: screenWidth * 0.04,
-                            ),
-                          ),
-                        ),
-                        Padding(
-                          padding: EdgeInsets.only(
-                            left: screenWidth * 0.05,
-                            top: screenHeight * 0.005,
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.wb_sunny_outlined,
-                                color: Colors.amber,
-                                size: screenWidth * 0.06,
-                              ),
-                              SizedBox(width: screenWidth * 0.01),
-                              Text(
-                                DateFormat('hh:mm a').format(DateTime.now()),
-                                style: GoogleFonts.beVietnamPro(
-                                  fontSize: screenWidth * 0.055,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    Image.asset(
-                      "assets/images/border_ui.png",
-                      fit: BoxFit.cover,
-                    ),
-                  ],
-                ),
-              ),
-              Positioned(
-                top: screenHeight * 0.05,
-                right: screenWidth * 0.34,
-                child: Transform.translate(
-                  offset: Offset(0, screenHeight * 0.01),
-                  child: Image.asset(
-                    "assets/images/lamp_shot.png",
-                    height: screenHeight * 0.1,
-                  ),
-                ),
-              ),
-              Positioned(
-                top: screenHeight * 0.1,
-                right: screenWidth * 0.26,
-                child: Transform.translate(
-                  offset: Offset(0, screenHeight * 0.01),
-                  child: Image.asset(
-                    "assets/images/lamp.png",
-                    height: screenHeight * 0.1,
-                  ),
-                ),
-              ),
-              Positioned(
-                top: screenHeight * 0.12,
-                right: -screenWidth * 0.05,
-                child: Transform.translate(
-                  offset: Offset(0, screenHeight * 0.01),
-                  child: Image.asset(
-                    "assets/images/logo_blur.png",
-                    height: screenHeight * 0.21,
-                    width: screenWidth * 0.45,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          Expanded(
-            child: Stack(
+    // List of prayers data for ListView.builder
+    final List<Map<String, dynamic>> prayers = [
+      {'name': 'Fajr', 'arabic': 'الفجر', 'time': prayerTimes.fajr},
+      {'name': 'Dhuhr', 'arabic': 'الظهر', 'time': prayerTimes.dhuhr},
+      {'name': 'Asr', 'arabic': 'العصر', 'time': prayerTimes.asr},
+      {'name': 'Maghrib', 'arabic': 'المغرب', 'time': prayerTimes.maghrib},
+      {'name': 'Isha', 'arabic': 'العشاء', 'time': prayerTimes.isha},
+    ];
+
+    return WillPopScope(
+      onWillPop: () async {
+        DateTime now = DateTime.now();
+        if (currentBackPressTime == null ||
+            now.difference(currentBackPressTime!) >
+                const Duration(seconds: 2)) {
+          currentBackPressTime = now;
+          Fluttertoast.showToast(msg: "Press back again to exit");
+          return Future.value(false);
+        }
+        return Future.value(true);
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFF0C5E38),
+        body: Column(
+          children: [
+            // In PrayerHomePage's build method, update the Stack like this:
+            // In PrayerHomePage's build method
+            Stack(
               children: [
-                Container(
-                  color: Colors.white,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Divider(
-                        height: 0,
-                        color: Colors.yellow,
-                        thickness: 5,
-                      ),
-                      SizedBox(height: screenHeight * 0.015),
-                      Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: screenWidth * 0.035,
-                        ),
-                        child: Text(
-                          "🙌 Stay Aligned with the Call of Prayer",
-                          style: GoogleFonts.beVietnamPro(
-                            fontWeight: FontWeight.bold,
-                            fontSize: screenWidth * 0.045,
-                            letterSpacing: -0.4,
-                          ),
-                        ),
-                      ),
-                      Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: screenWidth * 0.035,
-                          vertical: screenHeight * 0.005,
-                        ),
-                        child: Text(
-                          "Check today's prayer timings and stay connected to your masjid, wherever you are.",
-                          style: GoogleFonts.beVietnamPro(
-                            color: Colors.grey,
-                            fontSize: screenWidth * 0.035,
-                            letterSpacing: -0.4,
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: ListView(
-                          padding: EdgeInsets.only(top: screenHeight * 0.01),
-                          children: [
-                            // Fajr Prayer Card
-                            // Fajr Prayer Card
-                            PrayerCard(
-                              imagePath: _prayerController.getImagePath('Fajr'),
-                              title: 'Fajr',
-                              arabic: 'الفجر',
-                              time: prayerTimes.fajr,
-                              status: _prayerController.getPrayerStatus('Fajr', selectedDate, prayerTimes),
-                              statusColor: _prayerController.getStatusColor(
-                                  _prayerController.getPrayerStatus('Fajr', selectedDate, prayerTimes)
-                              ),
-                              trailingIcon: Icons.notifications,
-                            ),
+                // 1. Main header content (with interactive elements)
+                HomePageMosqueHeader(
+                  screenHeight: screenHeight,
+                  screenWidth: screenWidth,
+                  timeRemaining: _timeRemaining,
+                  nextPrayer: _nextPrayer,
+                  hasActiveSubscription: hasActiveSubscription,
+                ),
 
-// Dhuhr Prayer Card
-                            PrayerCard(
-                              imagePath: _prayerController.getImagePath('Dhuhr'),
-                              title: 'Dhuhr',
-                              arabic: 'الظهر',
-                              time: prayerTimes.dhuhr,
-                              status: _prayerController.getPrayerStatus('Dhuhr', selectedDate, prayerTimes),
-                              statusColor: _prayerController.getStatusColor(
-                                  _prayerController.getPrayerStatus('Dhuhr', selectedDate, prayerTimes)
-                              ),
-                              trailingIcon: Icons.notifications,
-                            ),
-
-// Asr Prayer Card
-                            PrayerCard(
-                              imagePath: _prayerController.getImagePath('Asr'),
-                              title: 'Asr',
-                              arabic: 'العصر',
-                              time: prayerTimes.asr,
-                              status: _prayerController.getPrayerStatus('Asr', selectedDate, prayerTimes),
-                              statusColor: _prayerController.getStatusColor(
-                                  _prayerController.getPrayerStatus('Asr', selectedDate, prayerTimes)
-                              ),
-                              // No trailing icon for Asr as per your original code
-                            ),
-
-// Maghrib Prayer Card
-                            PrayerCard(
-                              imagePath: _prayerController.getImagePath('Maghrib'),
-                              title: 'Maghrib',
-                              arabic: 'المغرب',
-                              time: prayerTimes.maghrib,
-                              status: _prayerController.getPrayerStatus('Maghrib', selectedDate, prayerTimes),
-                              statusColor: _prayerController.getStatusColor(
-                                  _prayerController.getPrayerStatus('Maghrib', selectedDate, prayerTimes)
-                              ),
-                              // No trailing icon for Maghrib as per your original code
-                            ),
-
-// Isha Prayer Card
-                            PrayerCard(
-                              imagePath: _prayerController.getImagePath('Isha'),
-                              title: 'Isha',
-                              arabic: 'العشاء',
-                              time: prayerTimes.isha,
-                              status: _prayerController.getPrayerStatus('Isha', selectedDate, prayerTimes),
-                              statusColor: _prayerController.getStatusColor(
-                                  _prayerController.getPrayerStatus('Isha', selectedDate, prayerTimes)
-                              ),
-                              // No trailing icon for Isha as per your original code
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                // 2. Decorative images (with hit testing disabled where they overlap buttons)
+                PositionedImageWidget(
+                  top: screenHeight * 0.05,
+                  right: screenWidth * 0.34,
+                  offsetY: screenHeight * 0.01,
+                  imagePath: "assets/images/lamp_shot.png",
+                  height: screenHeight * 0.1,
+                  ignorePointer: true, // Add this property
+                ),
+                PositionedImageWidget(
+                  top: screenHeight * 0.1,
+                  right: screenWidth * 0.26,
+                  offsetY: screenHeight * 0.01,
+                  imagePath: "assets/images/lamp.png",
+                  height: screenHeight * 0.1,
+                  ignorePointer: true, // Add this property
+                ),
+                PositionedImageWidget(
+                  top: screenHeight * 0.12,
+                  right: -screenWidth * 0.05,
+                  offsetY: screenHeight * 0.01,
+                  imagePath: "assets/images/logo_blur.png",
+                  height: screenHeight * 0.21,
+                  width: screenWidth * 0.45,
+                  ignorePointer: true, // Add this property
                 ),
               ],
             ),
-          ),
-        ],
+            Expanded(
+              child: MyDevicesAndPrayers(
+                screenHeight: screenHeight,
+                screenWidth: screenWidth,
+                prayers: prayers,
+                prayerController: _prayerController,
+                selectedDate: selectedDate,
+                prayerTimes: prayerTimes,
+                customerDetails: customerDetails,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

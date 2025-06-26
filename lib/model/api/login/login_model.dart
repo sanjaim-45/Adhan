@@ -1,10 +1,14 @@
 class LoginResponse {
   final String message;
-  final LoginData data;
+  final CustomerDetailResponse customerDetailResponse;
+  final String accessToken;
+  final String refreshToken;
 
   LoginResponse({
     required this.message,
-    required this.data,
+    required this.customerDetailResponse,
+    required this.accessToken,
+    required this.refreshToken,
   });
 
   factory LoginResponse.fromJson(Map<String, dynamic>? json) {
@@ -13,76 +17,132 @@ class LoginResponse {
     }
 
     return LoginResponse(
-      message: json['message'] as String? ?? 'No message',
-      data: LoginData.fromJson(json['data'] as Map<String, dynamic>?),
+      message: json['message'] as String? ?? '',
+      customerDetailResponse: CustomerDetailResponse.fromJson(
+        json['customerDetailResponse'] as Map<String, dynamic>?,
+      ),
+      accessToken: json['accessToken'] as String? ?? '',
+      refreshToken: json['refreshToken'] as String? ?? '',
     );
   }
 }
 
-class LoginData {
+class CustomerDetailResponse {
   final String customerId;
-  final List<dynamic> devices;
-  final Subscription? subscription;
+  final String userType;
+  final List<Device> devices;
+  final Subscription subscription;
+  final String profileImage;
 
-  LoginData({
+  CustomerDetailResponse({
     required this.customerId,
+    required this.userType,
     required this.devices,
-    this.subscription,
+    required this.subscription,
+    required this.profileImage,
   });
 
-  factory LoginData.fromJson(Map<String, dynamic>? json) {
+  factory CustomerDetailResponse.fromJson(Map<String, dynamic>? json) {
     if (json == null) {
-      return LoginData(
+      return CustomerDetailResponse(
         customerId: '',
+        userType: '',
         devices: [],
-        subscription: null,
+        subscription: Subscription.fromJson(null),
+        profileImage: '',
       );
     }
 
-    return LoginData(
-      customerId: (json['customerId']?.toString() ?? ''),
-      devices: json['devices'] as List<dynamic>? ?? [],
-      subscription: json['subscription'] != null
-          ? Subscription.fromJson(json['subscription'] as Map<String, dynamic>?)
-          : null,
+    return CustomerDetailResponse(
+      customerId: json['customerId']?.toString() ?? '',
+      userType: json['userType'] as String? ?? '',
+      devices:
+          (json['devices'] as List<dynamic>?)
+              ?.map((e) => Device.fromJson(e as Map<String, dynamic>?))
+              .toList() ??
+          [],
+      subscription: Subscription.fromJson(
+        json['subscription'] as Map<String, dynamic>?,
+      ),
+      profileImage: json['profileImage'] as String? ?? '',
+    );
+  }
+}
+
+class Device {
+  final int customerDeviceMapId;
+  final int customerId;
+  final int deviceId;
+  final bool status;
+  final String customerName;
+  final String deviceName;
+
+  Device({
+    required this.customerDeviceMapId,
+    required this.customerId,
+    required this.deviceId,
+    required this.status,
+    required this.customerName,
+    required this.deviceName,
+  });
+
+  factory Device.fromJson(Map<String, dynamic>? json) {
+    if (json == null) {
+      return Device(
+        customerDeviceMapId: 0,
+        customerId: 0,
+        deviceId: 0,
+        status: false,
+        customerName: '',
+        deviceName: '',
+      );
+    }
+
+    return Device(
+      customerDeviceMapId: (json['customerDeviceMapId'] as int?) ?? 0,
+      customerId: (json['customerId'] as int?) ?? 0,
+      deviceId: (json['deviceId'] as int?) ?? 0,
+      status: (json['status'] as bool?) ?? false,
+      customerName: (json['customerName'] as String?) ?? '',
+      deviceName: (json['deviceName'] as String?) ?? '',
     );
   }
 }
 
 class Subscription {
   final String firstName;
-  final String lastName;
+  final String? lastName;
   final String mosque;
   final String mosqueLocation;
-  final SubscriptionPlan? subscriptionPlan;
+  final SubscriptionPlan subscriptionPlan;
 
   Subscription({
     required this.firstName,
-    required this.lastName,
+    this.lastName,
     required this.mosque,
     required this.mosqueLocation,
-    this.subscriptionPlan,
+    required this.subscriptionPlan,
   });
 
   factory Subscription.fromJson(Map<String, dynamic>? json) {
     if (json == null) {
       return Subscription(
         firstName: '',
-        lastName: '',
+        lastName: null,
         mosque: '',
         mosqueLocation: '',
-        subscriptionPlan: null,
+        subscriptionPlan: SubscriptionPlan.fromJson(null),
       );
     }
 
     return Subscription(
       firstName: json['firstName'] as String? ?? '',
-      lastName: json['lastName'] as String? ?? '',
+      lastName: json['lastName'] as String?,
       mosque: json['mosque'] as String? ?? '',
       mosqueLocation: json['mosqueLocation'] as String? ?? '',
-      subscriptionPlan: json['subscriptionPlan'] != null
-          ? SubscriptionPlan.fromJson(json['subscriptionPlan'] as Map<String, dynamic>)
-          : null,
+      subscriptionPlan: SubscriptionPlan.fromJson(
+        json['subscriptionPlan'] as Map<String, dynamic>?,
+      ),
     );
   }
 }
@@ -108,7 +168,20 @@ class SubscriptionPlan {
     required this.currency,
   });
 
-  factory SubscriptionPlan.fromJson(Map<String, dynamic> json) {
+  factory SubscriptionPlan.fromJson(Map<String, dynamic>? json) {
+    if (json == null) {
+      return SubscriptionPlan(
+        planId: 0,
+        planName: '',
+        description: '',
+        billingCycle: '',
+        durationDays: 0,
+        remainingDays: 0,
+        price: 0.0,
+        currency: 'KWD',
+      );
+    }
+
     return SubscriptionPlan(
       planId: (json['planId'] as int?) ?? 0,
       planName: (json['planName'] as String?) ?? '',

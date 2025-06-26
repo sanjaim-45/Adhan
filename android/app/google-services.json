@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "379008315585",
+    "project_id": "atticafe-b9e3d",
+    "storage_bucket": "atticafe-b9e3d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:379008315585:android:58b1b49f059b1a7b43a440",
+        "android_client_info": {
+          "package_name": "com.aastratech.attitest"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBbVist4Dee-NoQYeXAjlWs3h4fdmvbtMw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:379008315585:android:d9d680892488047543a440",
+        "android_client_info": {
+          "package_name": "com.example.prayerunitesss"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBbVist4Dee-NoQYeXAjlWs3h4fdmvbtMw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

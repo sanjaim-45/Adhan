@@ -1,92 +1,142 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import 'package:prayerunitesss/ui/screens/transaction/transaction_details.dart';
+import 'package:provider/provider.dart';
 
-import '../../../utils/font_mediaquery.dart';
+import '../../../model/api/transaction/transaction_response.dart';
+import '../../../service/api/templete_api/api_service.dart';
+import '../../../utils/custom_appbar.dart';
 
-class PaymentHistoryPage extends StatelessWidget {
+class PaymentHistoryPage extends StatefulWidget {
   const PaymentHistoryPage({super.key});
+
+  @override
+  State<PaymentHistoryPage> createState() => _PaymentHistoryPageState();
+}
+
+class _PaymentHistoryPageState extends State<PaymentHistoryPage> {
+  late Future<TransactionResponse?> _transactionsFuture;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _transactionsFuture = _loadTransactions();
+  }
+
+  Future<TransactionResponse?> _loadTransactions() async {
+    setState(() => _isLoading = true);
+    try {
+      final apiService = Provider.of<ApiService>(context, listen: false);
+      final response = await apiService.getAllCustomerTransactions();
+      return response;
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
     final height = MediaQuery.of(context).size.height;
 
-    final List<Map<String, dynamic>> payments = [
-      {"status": "Paid", "color": Colors.green[100], "textColor": Colors.green},
-      {"status": "Paid", "color": Colors.green[100], "textColor": Colors.green},
-      {"status": "Cancelled", "color": Colors.red[100], "textColor": Colors.red},
-      {"status": "Cancelled", "color": Colors.red[100], "textColor": Colors.red},
-    ];
     return Scaffold(
       backgroundColor: const Color(0xFFF8F8F8),
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(kToolbarHeight),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.1),
-                spreadRadius: 1,
-                blurRadius: 8,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: AppBar(
-            backgroundColor: Colors.white,
-            elevation: 0,
-            leadingWidth: 30,
-            leading: Padding(
-              padding: const EdgeInsets.only(left: 8.0),
-              child: IconButton(
-                icon: Icon(Icons.arrow_back_ios_new, size: width * 0.043),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ),
-            title: Text(
-              'Payment History',
-              style: GoogleFonts.beVietnamPro(
-                color: Colors.black,
-                letterSpacing: -0.5,
-                fontSize: getDynamicFontSize(context, 0.05),
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ),
+      appBar: CustomAppBar(
+        title: 'Payment History',
+        onBack: () => Navigator.of(context).pop(),
       ),
       body: Padding(
-        padding: EdgeInsets.symmetric(horizontal: width * 0.05, vertical: height * 0.02),
+        padding: EdgeInsets.symmetric(
+          horizontal: width * 0.05,
+          vertical: height * 0.02,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              "Past Payment history",
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: width * 0.045,
+            SizedBox(height: height * 0.02),
+            Expanded(
+              child: FutureBuilder<TransactionResponse?>(
+                future: _transactionsFuture,
+                builder: (context, snapshot) {
+                  if (_isLoading) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.error_outline,
+                            size: 50,
+                            color: Colors.red[400],
+                          ),
+                          SizedBox(height: 10),
+                          Text(
+                            'Error loading payments',
+                            style: TextStyle(
+                              fontSize: width * 0.04,
+                              color: Colors.grey[700],
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  if (!snapshot.hasData || snapshot.data!.data.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(height: 10),
+                          Text(
+                            'No Payment found',
+                            style: TextStyle(
+                              fontSize: width * 0.04,
+                              color: Colors.grey[700],
+                            ),
+                          ),
+                          SizedBox(height: 10),
+                        ],
+                      ),
+                    );
+                  }
+
+                  final transactions = snapshot.data!.data;
+
+                  return RefreshIndicator(
+                    onRefresh: _loadTransactions,
+                    child: ListView.builder(
+                      itemCount: transactions.length,
+                      itemBuilder: (context, index) {
+                        final transaction = transactions[index];
+                        return GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (context) => TransactionDetailsPage(
+                                      transaction: transaction,
+                                    ),
+                              ),
+                            );
+                          },
+                          child: PaymentTile(
+                            width: width,
+                            height: height,
+                            transaction: transaction,
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                },
               ),
             ),
-            SizedBox(height: height * 0.02),
-            ...payments.map((payment) => GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const TransactionDetailsPage(),
-                  ),
-                );
-              },
-              child: PaymentTile(
-                width: width,
-                height: height,
-                status: payment["status"],
-                bgColor: payment["color"],
-                textColor: payment["textColor"],
-              ),
-            )),
           ],
         ),
       ),
@@ -97,17 +147,13 @@ class PaymentHistoryPage extends StatelessWidget {
 class PaymentTile extends StatelessWidget {
   final double width;
   final double height;
-  final String status;
-  final Color bgColor;
-  final Color textColor;
+  final CustomerTransaction transaction;
 
   const PaymentTile({
     super.key,
     required this.width,
     required this.height,
-    required this.status,
-    required this.bgColor,
-    required this.textColor,
+    required this.transaction,
   });
 
   @override
@@ -129,17 +175,17 @@ class PaymentTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '17 Sep 2023',
+                  _formatDate(transaction.paymentDate),
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: width * 0.045,
+                    fontSize: width * 0.040,
                   ),
                 ),
                 SizedBox(height: height * 0.005),
                 Text(
-                  'Subscription from 4/14/2023–5/13/2023',
+                  'Subscription ${_formatCustomDate(transaction.startDate)} - ${_formatCustomDate(transaction.endDate)}',
                   style: TextStyle(
-                    fontSize: width * 0.035,
+                    fontSize: width * 0.033,
                     color: Colors.grey[600],
                   ),
                 ),
@@ -150,31 +196,43 @@ class PaymentTile extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '1.000 KWD',
+                "${transaction.amountPaid.toStringAsFixed(2)} KWD" ??
+                    'N/A', // Handle null case
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: width * 0.045,
+                  fontSize: width * 0.04,
                 ),
               ),
               Container(
                 margin: EdgeInsets.only(top: height * 0.005),
-                padding: EdgeInsets.symmetric(horizontal: width * 0.025, vertical: height * 0.003),
+                padding: EdgeInsets.symmetric(
+                  horizontal: width * 0.02,
+                  vertical: height * 0.001,
+                ),
                 decoration: BoxDecoration(
-                  color: bgColor,
+                  color: transaction.statusBgColor,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  status,
+                  transaction.status,
                   style: TextStyle(
-                    color: textColor,
+                    color: transaction.statusColor,
                     fontSize: width * 0.03,
                   ),
                 ),
-              )
+              ),
             ],
-          )
+          ),
         ],
       ),
     );
+  }
+
+  String _formatDate(DateTime date) {
+    return DateFormat('dd MMM yyyy').format(date);
+  }
+
+  String _formatCustomDate(DateTime date) {
+    return DateFormat('M/d/yyyy').format(date);
   }
 }
