@@ -79,6 +79,7 @@ class ReportDeviceApiService {
         throw Exception('Failed to cancel request: ${response.statusCode}');
       }
     } catch (e) {
+      print('Error canceling order item: $e');
       throw Exception('Failed to cancel request: $e');
     }
   }

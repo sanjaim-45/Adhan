@@ -294,7 +294,7 @@ class _UpdateEmailPageState extends State<UpdateEmailPage> {
                       autovalidateMode: AutovalidateMode.onUserInteraction,
                       validator: _validateEmail,
                       decoration: InputDecoration(
-                        hintText: 'Enter NewEmail',
+                        hintText: 'Enter New Email',
                         hintStyle: const TextStyle(color: Color(0xFFA1A1A1)),
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 12,
@@ -350,7 +350,15 @@ class _UpdateEmailPageState extends State<UpdateEmailPage> {
                 controller: _otpController,
                 focusNode: _otpFocusNode,
                 keyboardType: TextInputType.number,
+                maxLength: 6, // Restrict input to 6 digits
                 autovalidateMode: AutovalidateMode.onUserInteraction,
+                buildCounter:
+                    (
+                      BuildContext context, {
+                      int? currentLength,
+                      int? maxLength,
+                      bool? isFocused,
+                    }) => null,
                 validator: (value) {
                   final email = _emailController.text.trim();
                   final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');

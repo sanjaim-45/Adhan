@@ -416,7 +416,9 @@ class AddressTile extends StatelessWidget {
                         child: Row(
                           children: [
                             Text(
-                              address.fullName,
+                              address.fullName.length > 20
+                                  ? '${address.fullName.substring(0, 20)}...'
+                                  : address.fullName,
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: Colors.black87,

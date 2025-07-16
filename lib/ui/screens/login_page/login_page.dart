@@ -102,8 +102,6 @@ class _LoginPageState extends State<LoginPage> {
         if (!mounted) return;
         _usernameController.clear();
         _passwordController.clear();
-        _usernameFocusNode.unfocus();
-        _passwordFocusNode.unfocus();
 
         Navigator.pushReplacement(
           context,
@@ -117,6 +115,8 @@ class _LoginPageState extends State<LoginPage> {
         );
       } else {
         if (!mounted) return;
+        _usernameFocusNode.unfocus();
+        _passwordFocusNode.unfocus();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Login failed'),
@@ -127,6 +127,8 @@ class _LoginPageState extends State<LoginPage> {
       }
     } on SocketException catch (_) {
       if (!mounted) return;
+      _usernameFocusNode.unfocus();
+      _passwordFocusNode.unfocus();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -139,6 +141,8 @@ class _LoginPageState extends State<LoginPage> {
       );
     } on TimeoutException catch (_) {
       if (!mounted) return;
+      _usernameFocusNode.unfocus();
+      _passwordFocusNode.unfocus();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Connection timeout. Please try again.'),
@@ -148,6 +152,8 @@ class _LoginPageState extends State<LoginPage> {
       );
     } on http.ClientException catch (e) {
       if (!mounted) return;
+      _usernameFocusNode.unfocus();
+      _passwordFocusNode.unfocus();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Network error: ${e.message}'),
@@ -158,6 +164,8 @@ class _LoginPageState extends State<LoginPage> {
     } catch (e) {
       print(e);
       if (!mounted) return;
+      _usernameFocusNode.unfocus();
+      _passwordFocusNode.unfocus();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(e.toString().replaceFirst('Exception: ', '')),
@@ -167,6 +175,8 @@ class _LoginPageState extends State<LoginPage> {
       );
     } finally {
       if (mounted) {
+        _usernameFocusNode.unfocus();
+        _passwordFocusNode.unfocus();
         setState(() {
           _isLoading = false;
         });
@@ -181,6 +191,7 @@ class _LoginPageState extends State<LoginPage> {
     final screenWidth = mediaQuery.size.width;
 
     return Scaffold(
+      resizeToAvoidBottomInset: true, // Adjusts the view when keyboard appears
       backgroundColor: const Color(0xFF3B873E),
       body: GestureDetector(
         onTap: () {

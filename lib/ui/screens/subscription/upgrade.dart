@@ -11,6 +11,10 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../model/api/devices/my_devices_model.dart';
 import '../../../model/api/subscription_model.dart';
+import '../../../service/api/devices_list/devices_list_api.dart';
+import '../../../service/api/templete_api/api_service.dart';
+import '../../../service/api/tokens/token_service.dart';
+import '../../../utils/app_urls.dart';
 import 'device_request/device_request_screen.dart';
 
 class SubscriptionPage extends StatefulWidget {
@@ -62,55 +66,55 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
     }
   }
 
-  Future<void> _subscribeToPlan() async {
-    if (selectedPlanId == null) return;
-
-    final plan = plans.firstWhere((p) => p['planId'] == selectedPlanId);
-    final double amount = double.tryParse(plan['price'].toString()) ?? 0.0;
-
-    try {
-      // Show beautiful loading dialog
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder:
-            (context) => PaymentLoadingDialog(
-              amount: amount,
-              planName: plan['planName'],
-            ),
-      );
-
-      // 1. First initiate payment to get payment methods
-      MFInitiatePaymentRequest initiateRequest = MFInitiatePaymentRequest(
-        invoiceAmount: amount,
-        currencyIso: MFCurrencyISO.KUWAIT_KWD, // Changed to KWD
-      );
-
-      final initiationResponse = await MFSDK.initiatePayment(
-        initiateRequest,
-        MFLanguage.ENGLISH,
-      );
-
-      // Dismiss loading dialog
-      if (!mounted)
-        return; // Add return value here if the function expects one, or make it void
-      Navigator.of(context).pop();
-
-      // Show payment method selection bottom sheet
-      _showPaymentMethodSelection(initiationResponse.paymentMethods!, amount);
-    } catch (error) {
-      if (!mounted) return;
-      Navigator.of(context).pop(); // Dismiss loading dialog
-      String errorMessage = error.toString();
-      if (error is MFError) {
-        errorMessage = error.message ?? "An unknown error occurred.";
-        // You can also access error.status, error.code, etc.
-        // For example, if you want to show the code:
-        // errorMessage += " (Code: ${error.code})";
-      }
-      _showPaymentError(errorMessage);
-    }
-  }
+  // Future<void> _subscribeToPlan() async {
+  //   if (selectedPlanId == null) return;
+  //
+  //   final plan = plans.firstWhere((p) => p['planId'] == selectedPlanId);
+  //   final double amount = double.tryParse(plan['price'].toString()) ?? 0.0;
+  //
+  //   try {
+  //     // Show beautiful loading dialog
+  //     showDialog(
+  //       context: context,
+  //       barrierDismissible: false,
+  //       builder:
+  //           (context) => PaymentLoadingDialog(
+  //             amount: amount,
+  //             planName: plan['planName'],
+  //           ),
+  //     );
+  //
+  //     // 1. First initiate payment to get payment methods
+  //     MFInitiatePaymentRequest initiateRequest = MFInitiatePaymentRequest(
+  //       invoiceAmount: amount,
+  //       currencyIso: MFCurrencyISO.KUWAIT_KWD, // Changed to KWD
+  //     );
+  //
+  //     final initiationResponse = await MFSDK.initiatePayment(
+  //       initiateRequest,
+  //       MFLanguage.ENGLISH,
+  //     );
+  //
+  //     // Dismiss loading dialog
+  //     if (!mounted)
+  //       return; // Add return value here if the function expects one, or make it void
+  //     Navigator.of(context).pop();
+  //
+  //     // Show payment method selection bottom sheet
+  //     _showPaymentMethodSelection(initiationResponse.paymentMethods!, amount);
+  //   } catch (error) {
+  //     if (!mounted) return;
+  //     Navigator.of(context).pop(); // Dismiss loading dialog
+  //     String errorMessage = error.toString();
+  //     if (error is MFError) {
+  //       errorMessage = error.message ?? "An unknown error occurred.";
+  //       // You can also access error.status, error.code, etc.
+  //       // For example, if you want to show the code:
+  //       // errorMessage += " (Code: ${error.code})";
+  //     }
+  //     _showPaymentError(errorMessage);
+  //   }
+  // }
 
   void _showPaymentMethodSelection(
     List<MFPaymentMethod> methods,
@@ -735,64 +739,66 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
             ),
           ),
     );
-  } // Future<void> _subscribeToPlan() async {
-  //   if (selectedPlanId == null) return;
-  //
-  //   // Get the access token from TokenService
-  //   final accessToken = await TokenService.getAccessToken();
-  //
-  //   if (accessToken == null) {
-  //     ScaffoldMessenger.of(context).showSnackBar(
-  //       const SnackBar(
-  //         content: Text('Authentication required. Please login again.'),
-  //         backgroundColor: Colors.red,
-  //       ),
-  //     );
-  //     return;
-  //   }
-  //
-  //   try {
-  //     // Show loading while fetching devices
-  //     showDialog(
-  //       context: context,
-  //       barrierDismissible: false,
-  //       builder: (context) => const Center(child: CircularProgressIndicator()),
-  //     );
-  //
-  //     // Fetch devices using the access token
-  //     final devices =
-  //         await DeviceService(
-  //           apiService: ApiService(baseUrl: AppUrls.appUrl),
-  //         ).getMyDevices();
-  //
-  //     if (!mounted) return;
-  //     Navigator.of(context).pop(); // Dismiss loading dialog
-  //
-  //     // Show device selection bottom sheet
-  //     showModalBottomSheet(
-  //       context: context,
-  //       isScrollControlled: true,
-  //       builder:
-  //           (context) => DeviceSelectionBottomSheet(
-  //             devices: devices,
-  //             onDeviceSelected: (deviceId) async {
-  //               if (deviceId != null) {
-  //                 await _completeSubscription(deviceId);
-  //               }
-  //             },
-  //           ),
-  //     );
-  //   } catch (e) {
-  //     if (!mounted) return;
-  //     Navigator.of(context).pop(); // Dismiss loading dialog
-  //     ScaffoldMessenger.of(context).showSnackBar(
-  //       SnackBar(
-  //         content: Text('Failed to fetch devices: ${e.toString()}'),
-  //         backgroundColor: Colors.red,
-  //       ),
-  //     );
-  //   }
-  // }
+  }
+
+  Future<void> _subscribeToPlan() async {
+    if (selectedPlanId == null) return;
+
+    // Get the access token from TokenService
+    final accessToken = await TokenService.getAccessToken();
+
+    if (accessToken == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Authentication required. Please login again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      // Show loading while fetching devices
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      // Fetch devices using the access token
+      final devices =
+          await DeviceService(
+            apiService: ApiService(baseUrl: AppUrls.appUrl),
+          ).getMyDevices();
+
+      if (!mounted) return;
+      Navigator.of(context).pop(); // Dismiss loading dialog
+
+      // Show device selection bottom sheet
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        builder:
+            (context) => DeviceSelectionBottomSheet(
+              devices: devices,
+              onDeviceSelected: (deviceId) async {
+                if (deviceId != null) {
+                  await _completeSubscription(deviceId);
+                }
+              },
+            ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(context).pop(); // Dismiss loading dialog
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to fetch devices: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
   Future<void> _completeSubscription(int deviceId) async {
     final prefs = await SharedPreferences.getInstance();
@@ -839,7 +845,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
       Navigator.of(context).pop(); // Dismiss loading dialog
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Subscription failed: ${e.toString()}'),
+          content: Text(' ${e.toString()}'),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
         ),

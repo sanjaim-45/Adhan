@@ -198,7 +198,6 @@ class _ChangePhoneNumberOtpVerificationState
       onTap: () => FocusScope.of(context).unfocus(),
 
       child: Scaffold(
-        resizeToAvoidBottomInset: true,
         backgroundColor: Color(0xFFFFFFFF),
         appBar: PreferredSize(
           preferredSize: const Size.fromHeight(kToolbarHeight),
@@ -215,6 +214,7 @@ class _ChangePhoneNumberOtpVerificationState
               ],
             ),
             child: AppBar(
+              surfaceTintColor: Colors.white,
               backgroundColor: Colors.white,
               elevation: 0,
               leadingWidth: 70,
@@ -254,14 +254,10 @@ class _ChangePhoneNumberOtpVerificationState
           ),
         ),
         body: SingleChildScrollView(
-          padding: EdgeInsets.only(
-            bottom:
-                MediaQuery.of(context).viewInsets.bottom, // Adjust for keyboard
-            left: 16.0,
-            right: 16.0,
-            top: 16.0,
-          ),
+          reverse: true, // This will help in keeping focused field visible
+          padding: const EdgeInsets.all(16.0),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(

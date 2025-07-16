@@ -190,11 +190,14 @@ class _PrayerTimesPageState extends State<PrayerTimesPage>
                 size: 28,
               ),
               const SizedBox(width: 12),
-              Text(
-                'Location Access Needed',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+              Flexible(
+                child: Text(
+                  'Location Access Needed',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
               ),
             ],
           ),

@@ -15,7 +15,7 @@ import '../../settings/delivery_address/add_delivery_addresss_ui.dart';
 import '../../settings/delivery_address/delivery_address_page.dart';
 import 'mosque_tiles.dart';
 
-class StepContentWidget extends StatelessWidget {
+class StepContentWidget extends StatefulWidget {
   final int step;
   final List<Mosque?> selectedMasjids;
   final List<SubscriptionPlan?> selectedPlans;
@@ -51,6 +51,14 @@ class StepContentWidget extends StatelessWidget {
     required this.onAddressSelected,
     required this.plans, // Add this to the constructor
   });
+
+  @override
+  State<StepContentWidget> createState() => _StepContentWidgetState();
+}
+
+class _StepContentWidgetState extends State<StepContentWidget> {
+  bool _isAddingAddress = false; // Add this as a state variable in your widget
+
   String _formattedDate() {
     final now = DateTime.now();
     final deliveryDate = now.add(const Duration(days: 3));
@@ -59,7 +67,7 @@ class StepContentWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    switch (step) {
+    switch (widget.step) {
       case 0:
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -69,7 +77,7 @@ class StepContentWidget extends StatelessWidget {
               style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
             ),
             const SizedBox(height: 12),
-            ...List.generate(selectedMasjids.length, (index) {
+            ...List.generate(widget.selectedMasjids.length, (index) {
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Container(
@@ -99,11 +107,11 @@ class StepContentWidget extends StatelessWidget {
                               fontSize: 16,
                             ),
                           ),
-                          if (selectedMasjids.length >
+                          if (widget.selectedMasjids.length >
                               1) // Show delete icon only if there's more than one device
                             IconButton(
                               icon: const Icon(Icons.delete, color: Colors.red),
-                              onPressed: () => removeDevice(index),
+                              onPressed: () => widget.removeDevice(index),
                             ),
                         ],
                       ),
@@ -122,21 +130,22 @@ class StepContentWidget extends StatelessWidget {
                         child: DropdownButtonFormField<Mosque>(
                           dropdownColor: Colors.white,
                           hint: const Text('Select Masjid'),
-                          value: selectedMasjids[index],
+                          value: widget.selectedMasjids[index],
                           items:
-                              masjidList.map((masjid) {
+                              widget.masjidList.map((masjid) {
                                 return DropdownMenuItem(
                                   value: masjid,
                                   child: Text(masjid.mosqueName),
                                 );
                               }).toList(),
-                          onChanged: (value) => updateMasjid(index, value),
+                          onChanged:
+                              (value) => widget.updateMasjid(index, value),
                           decoration: const InputDecoration(
                             border: InputBorder.none,
                           ),
                         ),
                       ),
-                      if (selectedMasjids[index] != null) ...[
+                      if (widget.selectedMasjids[index] != null) ...[
                         const SizedBox(height: 12),
                         const Text(
                           'Plan',
@@ -152,15 +161,16 @@ class StepContentWidget extends StatelessWidget {
                           child: DropdownButtonFormField<SubscriptionPlan>(
                             dropdownColor: Colors.white,
                             hint: const Text('Select Plan'),
-                            value: selectedPlans[index],
+                            value: widget.selectedPlans[index],
                             items:
-                                plans.map((plan) {
+                                widget.plans.map((plan) {
                                   return DropdownMenuItem(
                                     value: plan,
                                     child: Text(plan.planName),
                                   );
                                 }).toList(),
-                            onChanged: (value) => updatePlan(index, value),
+                            onChanged:
+                                (value) => widget.updatePlan(index, value),
                             decoration: const InputDecoration(
                               border: InputBorder.none,
                             ),
@@ -174,10 +184,10 @@ class StepContentWidget extends StatelessWidget {
             }),
             GestureDetector(
               onTap: () {
-                if (selectedMasjids.isEmpty ||
-                    (selectedMasjids.last != null &&
-                        selectedPlans.last != null)) {
-                  addDevice();
+                if (widget.selectedMasjids.isEmpty ||
+                    (widget.selectedMasjids.last != null &&
+                        widget.selectedPlans.last != null)) {
+                  widget.addDevice();
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -304,7 +314,7 @@ class StepContentWidget extends StatelessWidget {
                         provider.setShippingAddressId(
                           addresses.first.shippingAddressId,
                         );
-                        onAddressSelected({
+                        widget.onAddressSelected({
                           'shippingAddressId':
                               addresses.first.shippingAddressId,
                           'fullName': addresses.first.fullName,
@@ -330,7 +340,7 @@ class StepContentWidget extends StatelessWidget {
                         provider.setShippingAddressId(
                           addresses.first.shippingAddressId,
                         );
-                        onAddressSelected({
+                        widget.onAddressSelected({
                           'shippingAddressId':
                               addresses.first.shippingAddressId,
                           'fullName': addresses.first.fullName,
@@ -354,7 +364,7 @@ class StepContentWidget extends StatelessWidget {
                                 provider.setShippingAddressId(
                                   address.shippingAddressId,
                                 );
-                                onAddressSelected({
+                                widget.onAddressSelected({
                                   'shippingAddressId':
                                       address.shippingAddressId,
                                   'fullName': address.fullName,
@@ -393,7 +403,7 @@ class StepContentWidget extends StatelessWidget {
                                           provider.setShippingAddressId(
                                             address.shippingAddressId,
                                           );
-                                          onAddressSelected({
+                                          widget.onAddressSelected({
                                             'shippingAddressId':
                                                 address.shippingAddressId,
                                             'fullName': address.fullName,
@@ -440,52 +450,72 @@ class StepContentWidget extends StatelessWidget {
                                             icon: Icon(
                                               Icons.delete,
                                               size: 20,
-                                              color: Colors.red[300],
+                                              color:
+                                                  address.isDefault
+                                                      ? null
+                                                      : Colors.red[300],
                                             ),
-                                            onPressed: () async {
-                                              await showDeleteAddressDialog(
-                                                context: context,
-                                                onDeleteConfirmed: () async {
-                                                  try {
-                                                    final success = await deleteService
-                                                        .deleteShippingAddress(
-                                                          address
-                                                              .shippingAddressId,
-                                                        );
-                                                    if (success) {
-                                                      provider
-                                                          .refreshAddresses();
+                                            onPressed:
+                                                address.isDefault
+                                                    ? () {
                                                       ScaffoldMessenger.of(
                                                         context,
                                                       ).showSnackBar(
                                                         const SnackBar(
                                                           content: Text(
-                                                            'Address deleted successfully',
+                                                            'You cannot delete the default address. Please set another address as default first.',
                                                           ),
                                                           backgroundColor:
-                                                              Colors.green,
-                                                          behavior:
-                                                              SnackBarBehavior
-                                                                  .floating,
+                                                              Colors.orange,
                                                         ),
                                                       );
                                                     }
-                                                  } catch (e) {
-                                                    ScaffoldMessenger.of(
-                                                      context,
-                                                    ).showSnackBar(
-                                                      SnackBar(
-                                                        content: Text(
-                                                          'Delete failed: ${e.toString()}',
-                                                        ),
-                                                        backgroundColor:
-                                                            Colors.red,
-                                                      ),
-                                                    );
-                                                  }
-                                                },
-                                              );
-                                            },
+                                                    : () async {
+                                                      await showDeleteAddressDialog(
+                                                        context: context,
+                                                        onDeleteConfirmed: () async {
+                                                          try {
+                                                            final success =
+                                                                await deleteService
+                                                                    .deleteShippingAddress(
+                                                                      address
+                                                                          .shippingAddressId,
+                                                                    );
+                                                            if (success) {
+                                                              provider
+                                                                  .refreshAddresses();
+                                                              ScaffoldMessenger.of(
+                                                                context,
+                                                              ).showSnackBar(
+                                                                const SnackBar(
+                                                                  content: Text(
+                                                                    'Address deleted successfully',
+                                                                  ),
+                                                                  backgroundColor:
+                                                                      Colors
+                                                                          .green,
+                                                                  behavior:
+                                                                      SnackBarBehavior
+                                                                          .floating,
+                                                                ),
+                                                              );
+                                                            }
+                                                          } catch (e) {
+                                                            ScaffoldMessenger.of(
+                                                              context,
+                                                            ).showSnackBar(
+                                                              SnackBar(
+                                                                content: Text(
+                                                                  'Delete failed: ${e.toString()}',
+                                                                ),
+                                                                backgroundColor:
+                                                                    Colors.red,
+                                                              ),
+                                                            );
+                                                          }
+                                                        },
+                                                      );
+                                                    },
                                           ),
                                         ],
                                       ),
@@ -504,11 +534,26 @@ class StepContentWidget extends StatelessWidget {
             // Rest of your existing case 1 code...
             GestureDetector(
               onTap: () async {
-                await addNewAddress();
-                Provider.of<DeviceRequestProvider>(
-                  context,
-                  listen: false,
-                ).refreshAddresses();
+                if (_isAddingAddress) return; // Prevent multiple taps
+
+                setState(() {
+                  _isAddingAddress = true; // Disable button
+                });
+
+                try {
+                  await widget.addNewAddress();
+                  Provider.of<DeviceRequestProvider>(
+                    context,
+                    listen: false,
+                  ).refreshAddresses();
+                } finally {
+                  if (mounted) {
+                    // Check if widget is still in the tree
+                    setState(() {
+                      _isAddingAddress = false; // Re-enable button
+                    });
+                  }
+                }
               },
               child: Container(
                 margin: const EdgeInsets.only(top: 16),
@@ -527,16 +572,25 @@ class StepContentWidget extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Icon(Icons.add, color: Color(0xFF2E7D32)),
-                    SizedBox(width: 4),
+                    Icon(
+                      Icons.add,
+                      color:
+                          _isAddingAddress
+                              ? Colors.grey
+                              : const Color(0xFF2E7D32),
+                    ),
+                    const SizedBox(width: 4),
                     Text(
-                      'Add New Address',
+                      _isAddingAddress ? 'Adding...' : 'Add New Address',
                       style: TextStyle(
-                        color: Color(0xFF2E7D32),
+                        color:
+                            _isAddingAddress
+                                ? Colors.grey
+                                : const Color(0xFF2E7D32),
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -608,12 +662,13 @@ class StepContentWidget extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      ...selectedPlans
+                      ...widget.selectedPlans
                           .asMap()
                           .entries
                           .where((entry) => entry.value != null)
                           .map((planEntry) {
-                            final masjid = selectedMasjids[planEntry.key];
+                            final masjid =
+                                widget.selectedMasjids[planEntry.key];
                             return Padding(
                               padding: const EdgeInsets.symmetric(
                                 vertical: 4.0,
@@ -667,7 +722,7 @@ class StepContentWidget extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            '${selectedPlans.asMap().entries.where((entry) => entry.value != null).fold<double>(0.0, (sum, planEntry) {
+                            '${widget.selectedPlans.asMap().entries.where((entry) => entry.value != null).fold<double>(0.0, (sum, planEntry) {
                               return sum + (planEntry.value?.price ?? 0.0);
                             }).toStringAsFixed(2)} KWD',
                             style: const TextStyle(
@@ -689,7 +744,7 @@ class StepContentWidget extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Add Address',
+              'Delivery Address',
               style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
             ),
             const SizedBox(height: 12),
@@ -770,7 +825,7 @@ class StepContentWidget extends StatelessWidget {
                         provider.setShippingAddressId(
                           defaultAddress.shippingAddressId,
                         );
-                        onAddressSelected({
+                        widget.onAddressSelected({
                           'shippingAddressId': defaultAddress.shippingAddressId,
                           'fullName': defaultAddress.fullName,
                           'address': defaultAddress.address,
@@ -949,7 +1004,7 @@ class StepContentWidget extends StatelessWidget {
                 ),
               ),
             ),
-            if (selectedMasjids.any((masjid) => masjid != null))
+            if (widget.selectedMasjids.any((masjid) => masjid != null))
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.start,
@@ -977,9 +1032,11 @@ class StepContentWidget extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        ...List.generate(selectedMasjids.length, (index) {
-                          final masjid = selectedMasjids[index];
-                          final plan = selectedPlans[index];
+                        ...List.generate(widget.selectedMasjids.length, (
+                          index,
+                        ) {
+                          final masjid = widget.selectedMasjids[index];
+                          final plan = widget.selectedPlans[index];
                           return Padding(
                             padding: const EdgeInsets.symmetric(vertical: 4.0),
                             child: Column(
@@ -1029,7 +1086,7 @@ class StepContentWidget extends StatelessWidget {
                               ),
                             ),
                             Text(
-                              '${selectedPlans.fold<double>(0.0, (sum, plan) => sum + (plan?.price ?? 0.0)).toStringAsFixed(2)} KWD',
+                              '${widget.selectedPlans.fold<double>(0.0, (sum, plan) => sum + (plan?.price ?? 0.0)).toStringAsFixed(2)} KWD',
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
@@ -1067,15 +1124,15 @@ class StepContentWidget extends StatelessWidget {
                   RadioListTile<String>(
                     title: const Text('KNET (Online Payment)'),
                     value: 'KNET',
-                    groupValue: selectedPaymentMethod,
-                    onChanged: onPaymentMethodChanged,
+                    groupValue: widget.selectedPaymentMethod,
+                    onChanged: widget.onPaymentMethodChanged,
                     activeColor: const Color(0xFF2E7D32),
                   ),
                   RadioListTile<String>(
-                    title: const Text('Offline Payment'),
+                    title: const Text('Cash on Delivery (COD)'),
                     value: 'Offline',
-                    groupValue: selectedPaymentMethod,
-                    onChanged: onPaymentMethodChanged,
+                    groupValue: widget.selectedPaymentMethod,
+                    onChanged: widget.onPaymentMethodChanged,
                     activeColor: const Color(0xFF2E7D32),
                   ),
                 ],

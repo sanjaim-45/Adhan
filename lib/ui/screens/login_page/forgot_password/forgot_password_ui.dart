@@ -292,6 +292,7 @@ class _ForgotPasswordState extends State<ForgotPassword>
       },
       child: Scaffold(
         backgroundColor: const Color(0xFF3B873E),
+        resizeToAvoidBottomInset: false, // Add this line
         body: Form(
           key: _formKey,
           child: Column(

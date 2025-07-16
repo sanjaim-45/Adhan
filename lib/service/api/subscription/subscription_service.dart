@@ -36,7 +36,7 @@ class SubscriptionService {
       if (response.statusCode == 200 || response.statusCode == 201) {
         return {'message': response.body.trim()};
       } else {
-        throw Exception('Unexpected response: ${response.body}');
+        throw response.body;
       }
     }
   }

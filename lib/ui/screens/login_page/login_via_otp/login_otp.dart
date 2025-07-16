@@ -239,6 +239,7 @@ class _LoginOtpState extends State<LoginOtp> {
         FocusScope.of(context).unfocus(); // Unfocus when tapping outside
       },
       child: Scaffold(
+        resizeToAvoidBottomInset: false, // Add this line
         backgroundColor: const Color(0xFF3B873E),
         body: Form(
           key: _formKey,

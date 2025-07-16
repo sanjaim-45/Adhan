@@ -1295,15 +1295,15 @@ class _SignupScreenState extends State<SignupScreen> {
                       color: Color(0xFFA1A1A1),
                       fontSize: 14,
                     ),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        isPasswordVisible
-                            ? Icons.visibility
-                            : Icons.visibility_off,
-                        color: Colors.grey,
-                      ),
-                      onPressed: onVisibilityChanged, // Use parent's callback
-                    ),
+                    // suffixIcon: IconButton(
+                    //   icon: Icon(
+                    //     isPasswordVisible
+                    //         ? Icons.visibility
+                    //         : Icons.visibility_off,
+                    //     color: Colors.grey,
+                    //   ),
+                    //   onPressed: onVisibilityChanged, // Use parent's callback
+                    // ),
                   ),
                 ),
               ),

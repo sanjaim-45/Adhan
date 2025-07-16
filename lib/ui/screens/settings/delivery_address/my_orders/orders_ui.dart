@@ -214,7 +214,7 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
     return false;
   }
 
-  Future<bool> _cancelOrderItem(BuildContext context) async {
+  Future<bool> _cancelOrderItem(BuildContext context, int orderItemId) async {
     try {
       final accessToken = await TokenService.getAccessToken();
       if (accessToken == null || accessToken.isEmpty) {
@@ -222,7 +222,7 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
       }
 
       final success = await _apiService.cancelOrderRequestItem(
-        widget.order.items.first.orderItemId.toString(),
+        orderItemId.toString(),
         "Cancel the order",
       );
 
@@ -242,6 +242,7 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
         return false;
       }
     } catch (e) {
+      print("error is $e");
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -334,6 +335,7 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
 
   Future<void> _showCancelOrderItemConfirmationDialog(
     BuildContext context,
+    int orderItemId,
   ) async {
     return showModalBottomSheet(
       context: context,
@@ -387,10 +389,33 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
                         ),
                       ),
                       onPressed: () async {
-                        final bottomSheetNavigator = Navigator.of(context);
-                        final bool isCanceled = await _cancelOrderItem(context);
+                        final bool isCanceled;
+                        // If there's only one item in the order, cancelling that item
+                        // should cancel the entire order if it's the last active item.
+                        final activeItems =
+                            widget.order.items
+                                .where(
+                                  (item) =>
+                                      item.orderStatus.toLowerCase() !=
+                                      'cancelled',
+                                )
+                                .toList();
+
+                        if (activeItems.length == 1 &&
+                            activeItems.first.orderItemId == orderItemId) {
+                          isCanceled = await _cancelOrder(context);
+                        } else {
+                          // Otherwise, cancel the specific item
+                          isCanceled = await _cancelOrderItem(
+                            context,
+                            orderItemId,
+                          );
+                        }
+
                         if (isCanceled && context.mounted) {
-                          bottomSheetNavigator.pop();
+                          // Pop the bottom sheet
+                          Navigator.pop(context);
+                          // Pop the DeviceDetailsPage if the order/item was successfully cancelled
                           Navigator.pop(context, true);
                         }
                       },
@@ -688,18 +713,57 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
                               children: [
                                 const Divider(),
                                 const SizedBox(height: 8),
-                                const Text(
-                                  "Subscription Plan",
-                                  style: TextStyle(
-                                    color: Colors.grey,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                Text(
-                                  item.planName,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w500,
-                                  ),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          const Text(
+                                            "Subscription Plan",
+                                            style: TextStyle(
+                                              color: Colors.grey,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                          Text(
+                                            item.planName,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(
+                                      width: 8,
+                                    ), // Add some space between the columns
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          const Text(
+                                            "Mosque Location",
+                                            style: TextStyle(
+                                              color: Colors.grey,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                          Text(
+                                            item.mosqueLocation,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                                 ),
                                 const SizedBox(height: 8),
                                 const Text(
@@ -809,6 +873,7 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
                                             () =>
                                                 _showCancelOrderItemConfirmationDialog(
                                                   context,
+                                                  item.orderItemId,
                                                 ),
                                         child: const Text(
                                           'Cancel Item',

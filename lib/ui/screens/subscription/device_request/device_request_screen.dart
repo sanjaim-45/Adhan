@@ -291,9 +291,19 @@ class _DeviceRequestScreenState extends State<DeviceRequestScreen> {
   }
 
   Future<void> _addNewAddress() async {
-    final newAddress = await Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (context) => const AddNewAddressPage()));
+    final addresses =
+        await ShippingAddressGetAllApiService(
+          apiService: ApiService(baseUrl: AppUrls.appUrl),
+        ).getShippingAddresses();
+
+    final newAddress = await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder:
+            (context) => AddNewAddressPage(
+              isFirstAddress: addresses.isEmpty, // True if no addresses exist
+            ),
+      ),
+    );
 
     if (newAddress != null) {
       setState(() {

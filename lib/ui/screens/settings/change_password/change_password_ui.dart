@@ -17,6 +17,10 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
   final currentPasswordController = TextEditingController();
   final newPasswordController = TextEditingController();
   final confirmPasswordController = TextEditingController();
+  final currentPasswordFocusNode = FocusNode();
+  final newPasswordFocusNode = FocusNode();
+  final confirmPasswordFocusNode = FocusNode();
+
   final _formKey = GlobalKey<FormState>();
 
   bool _obscureCurrent = true;
@@ -110,130 +114,158 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
   }
 
   @override
+  void dispose() {
+    currentPasswordController.dispose();
+    newPasswordController.dispose();
+    confirmPasswordController.dispose();
+    currentPasswordFocusNode.dispose();
+    newPasswordFocusNode.dispose();
+    confirmPasswordFocusNode.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final mediaQuery = MediaQuery.of(context);
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: CustomAppBar(
-        title: 'Change Password',
-        onBack: () => Navigator.of(context).pop(),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
+    return GestureDetector(
+      onTap: () {
+        // Dismiss the keyboard when tapping outside of the text fields
+        FocusScope.of(context).unfocus();
+      },
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        appBar: CustomAppBar(
+          title: 'Change Password',
+          onBack: () => Navigator.of(context).pop(),
+        ),
+        body: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Form(
+            key: _formKey,
 
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Update your current password to keep your account secure.',
-                style: TextStyle(color: Color(0xFF767676), fontSize: 12),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                'Old Password',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: mediaQuery.size.width * 0.04,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Update your current password to keep your account secure.',
+                  style: TextStyle(color: Color(0xFF767676), fontSize: 12),
                 ),
-              ),
-              const SizedBox(height: 8),
-              _buildPasswordField(
-                currentPasswordController,
-                _obscureCurrent,
-                (value) => setState(() => _obscureCurrent = !_obscureCurrent),
-                hint: 'Enter your Old password',
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a password';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Password',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: mediaQuery.size.width * 0.04,
-                ),
-              ),
-              const SizedBox(height: 8),
-              _buildPasswordField(
-                newPasswordController,
-                _obscureNew,
-                (value) => setState(() => _obscureNew = !_obscureNew),
-                hint: 'Enter your new password',
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a new password';
-                  }
-                  if (value.length < 8) {
-                    return 'Password must be at least 8 characters';
-                  }
-                  if (!RegExp(r'[A-Z]').hasMatch(value)) {
-                    return 'Password must contain at least one uppercase letter';
-                  }
-                  if (!RegExp(r'[0-9]').hasMatch(value)) {
-                    return 'Password must contain at least one number';
-                  }
-                  if (value == currentPasswordController.text) {
-                    return 'New password cannot be the same as the old password';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Confirm Password',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: mediaQuery.size.width * 0.04,
-                ),
-              ),
-              const SizedBox(height: 8),
-              _buildPasswordField(
-                confirmPasswordController, // You'll need to add this controller
-                _obscureConfirm, // You'll need to add this state variable
-                (value) => setState(() => _obscureConfirm = !_obscureConfirm),
-                hint: 'Confirm your new password',
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your confirm password';
-                  }
-                  if (value != newPasswordController.text) {
-                    return 'Passwords do not match';
-                  }
-                  if (value == currentPasswordController.text) {
-                    return 'New password cannot be the same as the old password';
-                  }
-                  return null;
-                },
-              ),
-
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2E7D32),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                const SizedBox(height: 20),
+                Text(
+                  'Old Password',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: mediaQuery.size.width * 0.04,
                   ),
-                  onPressed: _isLoading ? null : _changePassword,
-                  child:
-                      _isLoading
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text(
-                            'Update',
-                            style: TextStyle(fontSize: 16, color: Colors.white),
-                          ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 8),
+                _buildPasswordField(
+                  currentPasswordController,
+                  currentPasswordFocusNode,
+                  _obscureCurrent,
+                  (value) => setState(() => _obscureCurrent = !_obscureCurrent),
+                  hint: 'Enter your Old password',
+                  showSuffixIcon: true,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter a password';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Password',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: mediaQuery.size.width * 0.04,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _buildPasswordField(
+                  newPasswordController,
+                  newPasswordFocusNode,
+                  _obscureNew,
+                  (value) => setState(() => _obscureNew = !_obscureNew),
+                  hint: 'Enter your New password',
+                  showSuffixIcon: false,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter a new password';
+                    }
+                    if (value.length < 8) {
+                      return 'Password must be at least 8 characters';
+                    }
+                    if (!RegExp(r'[A-Z]').hasMatch(value)) {
+                      return 'Password must contain at least one uppercase letter';
+                    }
+                    if (!RegExp(r'[0-9]').hasMatch(value)) {
+                      return 'Password must contain at least one number';
+                    }
+                    if (value == currentPasswordController.text) {
+                      return 'New password cannot be the same as the old password';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Confirm Password',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: mediaQuery.size.width * 0.04,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _buildPasswordField(
+                  confirmPasswordController, // You'll need to add this controller
+                  confirmPasswordFocusNode,
+                  _obscureConfirm, // You'll need to add this state variable
+                  (value) => setState(() => _obscureConfirm = !_obscureConfirm),
+                  hint: 'Confirm your New password',
+                  showSuffixIcon: false,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter your confirm password';
+                    }
+                    if (value != newPasswordController.text) {
+                      return 'Passwords do not match';
+                    }
+                    if (value == currentPasswordController.text) {
+                      return 'New password cannot be the same as the old password';
+                    }
+                    return null;
+                  },
+                ),
+
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2E7D32),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    onPressed: _isLoading ? null : _changePassword,
+                    child:
+                        _isLoading
+                            ? const CircularProgressIndicator(
+                              color: Colors.white,
+                            )
+                            : const Text(
+                              'Update',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.white,
+                              ),
+                            ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -242,28 +274,34 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
 
   Widget _buildPasswordField(
     TextEditingController controller,
+    FocusNode focusNode,
     bool obscureText,
     void Function(bool) toggleVisibility, {
     required String hint,
+    required bool showSuffixIcon,
     String? Function(String?)? validator, // Add validator parameter
   }) {
     return TextFormField(
       // Changed from TextField to TextFormField
       controller: controller,
       obscureText: obscureText,
+      focusNode: focusNode,
       validator: validator, // Add validator here
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: const TextStyle(color: Color(0xFFA1A1A1)),
-        suffixIcon: IconButton(
-          icon: Icon(
-            obscureText
-                ? Icons.visibility_off_outlined
-                : Icons.visibility_outlined,
-            color: Colors.grey, // Set icon color to grey
-          ),
-          onPressed: () => toggleVisibility(!obscureText),
-        ),
+        suffixIcon:
+            showSuffixIcon
+                ? IconButton(
+                  icon: Icon(
+                    obscureText
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    color: Colors.grey, // Set icon color to grey
+                  ),
+                  onPressed: () => toggleVisibility(!obscureText),
+                )
+                : null,
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: Colors.grey.withOpacity(0.4)),

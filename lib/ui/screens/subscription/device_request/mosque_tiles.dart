@@ -46,13 +46,15 @@ class MosqueTiles extends StatelessWidget {
                   Row(
                     children: [
                       Text(
-                        name,
+                        name.length > 20 ? '${name.substring(0, 20)}...' : name,
                         style: TextStyle(
                           color: Colors.black54,
                           fontSize: 14,
                           fontWeight:
                               isDefault ? FontWeight.bold : FontWeight.normal,
                         ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
                       ),
                       const SizedBox(width: 8),
                       if (isDefault)
